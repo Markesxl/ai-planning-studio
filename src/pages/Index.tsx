@@ -50,24 +50,30 @@ const Index = () => {
 
   // Handle AI-generated tasks
   const handleTasksGenerated = useCallback(
-    (aiTasks: { text: string; priority: string }[]) => {
+    (aiTasks: { text: string; priority: string; date?: string }[]) => {
+      const todayStr = new Date().toISOString().split("T")[0];
+      
       const newTasks: Task[] = aiTasks.map((t, i) => ({
         id: `${Date.now()}-${i}`,
         text: t.text,
         done: false,
         priority: (t.priority as "high" | "medium" | "low") || "medium",
-        date: new Date().toISOString().split("T")[0],
+        date: t.date || todayStr,
       }));
 
+      // Separate tasks into today and weekly based on date
+      const todayTasks = newTasks.filter((t) => t.date === todayStr);
+      const weeklyTasks = newTasks.filter((t) => t.date !== todayStr);
+
       saveTasks({
-        ...tasks,
-        weekly: [...tasks.weekly, ...newTasks],
+        today: [...tasks.today, ...todayTasks],
+        weekly: [...tasks.weekly, ...weeklyTasks],
       });
 
       setFeedback({
         show: true,
         type: "success",
-        message: `✅ ${newTasks.length} tarefas geradas!`,
+        message: `✅ ${newTasks.length} tarefas distribuídas ao longo do período!`,
       });
     },
     [tasks, saveTasks]

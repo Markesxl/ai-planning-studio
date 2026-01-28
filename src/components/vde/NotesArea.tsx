@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { StickyNote } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 const NOTES_KEY = "vde_notes";
 
-export function NotesArea() {
+export const NotesArea = forwardRef<HTMLDivElement>((_, ref) => {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function NotesArea() {
   };
 
   return (
-    <div className="space-y-3">
+    <div ref={ref} className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
         <StickyNote className="h-4 w-4" />
         Anotações Rápidas
@@ -33,4 +33,6 @@ export function NotesArea() {
       />
     </div>
   );
-}
+});
+
+NotesArea.displayName = "NotesArea";

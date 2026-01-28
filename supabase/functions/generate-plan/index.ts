@@ -25,32 +25,42 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+
     const systemPrompt = `Você é um assistente especializado em criar planejamentos de estudo personalizados e detalhados.
 
-TAREFA: Crie um cronograma de estudos baseado nas informações do usuário.
+TAREFA: Crie um cronograma de estudos baseado nas informações do usuário, DISTRIBUINDO as tarefas ao longo do período especificado.
 
 MATÉRIA/CURSO: ${subject}
 
 INFORMAÇÕES DO USUÁRIO:
 ${prompt}
 
+DATA DE INÍCIO: ${todayStr}
+
 INSTRUÇÕES:
 1. Analise o tempo disponível, objetivos e nível do usuário
 2. Divida o conteúdo em tarefas específicas e realizáveis
-3. Crie entre 7-15 tarefas (dependendo do prazo)
-4. Cada tarefa deve ser clara, específica e mensurável
-5. Ordene as tarefas de forma lógica e progressiva
-6. Inclua tempo estimado para cada tarefa
+3. Crie entre 7-20 tarefas (dependendo do prazo)
+4. DISTRIBUA as tarefas ao longo dos dias/semanas especificados pelo usuário
+5. Cada tarefa deve ter uma data específica no formato YYYY-MM-DD
+6. Se o usuário mencionar "30 dias", distribua as tarefas ao longo de 30 dias a partir de hoje
+7. Se mencionar "1 semana", distribua ao longo de 7 dias
+8. Se mencionar "5 meses", distribua ao longo dos meses
+9. Ordene as tarefas de forma lógica e progressiva
+10. Inclua tempo estimado para cada tarefa
 
 IMPORTANTE: Responda APENAS com um array JSON válido, sem texto adicional, markdown ou explicações.
 
 FORMATO OBRIGATÓRIO:
 [
-  {"text": "Descrição clara da tarefa 1 (tempo estimado)", "priority": "high"},
-  {"text": "Descrição clara da tarefa 2 (tempo estimado)", "priority": "medium"}
+  {"text": "Descrição clara da tarefa 1 (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD"},
+  {"text": "Descrição clara da tarefa 2 (tempo estimado)", "priority": "medium", "date": "YYYY-MM-DD"}
 ]
 
-Prioridades válidas: "high", "medium", "low"`;
+Prioridades válidas: "high", "medium", "low"
+Datas: Use datas reais a partir de ${todayStr}, distribuídas conforme o prazo do usuário.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
