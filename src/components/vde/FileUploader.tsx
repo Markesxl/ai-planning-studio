@@ -51,7 +51,8 @@ export function FileUploader({ onFileContent, isLoading }: FileUploaderProps) {
     }
   };
 
-  const acceptedTypes = ".txt,.md,.csv,.json,.html,.xml,.pdf";
+  // Only accept text-based files, not PDFs
+  const acceptedTypes = ".txt,.md,.csv,.json,.html,.xml";
 
   if (file) {
     return (
@@ -115,7 +116,7 @@ export function FileUploader({ onFileContent, isLoading }: FileUploaderProps) {
             {isProcessing ? "Processando..." : "Arraste um arquivo ou clique"}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            TXT, MD, CSV, JSON, HTML, XML
+            Apenas texto: TXT, MD, CSV, JSON (máx. 50KB)
           </p>
         </div>
       </div>
