@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bot, ListChecks, CalendarDays, Timer } from "lucide-react";
+import { Bot, CalendarDays, Timer } from "lucide-react";
 import { Sidebar } from "@/components/vde/Sidebar";
 import { AIPlanner } from "@/components/vde/AIPlanner";
 import { PomodoroTimer } from "@/components/vde/PomodoroTimer";
@@ -8,15 +8,10 @@ import { NotesArea } from "@/components/vde/NotesArea";
 import { FeedbackOverlay } from "@/components/vde/FeedbackOverlay";
 import { toast } from "@/hooks/use-toast";
 
-const STORAGE_KEY = "vde_v3_data";
-
-interface TaskData {
-  today: Task[];
-  weekly: Task[];
-}
+const STORAGE_KEY = "vde_v4_data";
 
 const Index = () => {
-  const [tasks, setTasks] = useState<TaskData>({ today: [], weekly: [] });
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [feedback, setFeedback] = useState<{
     show: boolean;
@@ -30,7 +25,15 @@ const Index = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setTasks(parsed);
+        // Handle migration from old format
+        if (Array.isArray(parsed)) {
+          setTasks(parsed);
+        } else if (parsed.tasks) {
+          setTasks(parsed.tasks);
+        } else if (parsed.today || parsed.weekly) {
+          // Migrate from old format
+          setTasks([...(parsed.today || []), ...(parsed.weekly || [])]);
+        }
       } catch {
         console.error("Failed to parse saved tasks");
       }
@@ -43,37 +46,29 @@ const Index = () => {
   }, []);
 
   // Save tasks to localStorage
-  const saveTasks = useCallback((newTasks: TaskData) => {
+  const saveTasks = useCallback((newTasks: Task[]) => {
     setTasks(newTasks);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newTasks));
   }, []);
 
   // Handle AI-generated tasks
   const handleTasksGenerated = useCallback(
-    (aiTasks: { text: string; priority: string; date?: string }[]) => {
-      const todayStr = new Date().toISOString().split("T")[0];
-      
+    (aiTasks: { text: string; priority: string; date?: string; category?: string }[]) => {
       const newTasks: Task[] = aiTasks.map((t, i) => ({
         id: `${Date.now()}-${i}`,
         text: t.text,
         done: false,
         priority: (t.priority as "high" | "medium" | "low") || "medium",
-        date: t.date || todayStr,
+        date: t.date || new Date().toISOString().split("T")[0],
+        category: t.category || "Geral",
       }));
 
-      // Separate tasks into today and weekly based on date
-      const todayTasks = newTasks.filter((t) => t.date === todayStr);
-      const weeklyTasks = newTasks.filter((t) => t.date !== todayStr);
-
-      saveTasks({
-        today: [...tasks.today, ...todayTasks],
-        weekly: [...tasks.weekly, ...weeklyTasks],
-      });
+      saveTasks([...tasks, ...newTasks]);
 
       setFeedback({
         show: true,
         type: "success",
-        message: `✅ ${newTasks.length} tarefas distribuídas ao longo do período!`,
+        message: `✅ ${newTasks.length} tarefas criadas!`,
       });
     },
     [tasks, saveTasks]
@@ -81,11 +76,11 @@ const Index = () => {
 
   // Toggle task completion
   const toggleTask = useCallback(
-    (type: "today" | "weekly", id: string) => {
-      const updatedTasks = tasks[type].map((t) =>
+    (id: string) => {
+      const updatedTasks = tasks.map((t) =>
         t.id === id ? { ...t, done: !t.done } : t
       );
-      saveTasks({ ...tasks, [type]: updatedTasks });
+      saveTasks(updatedTasks);
 
       const task = updatedTasks.find((t) => t.id === id);
       if (task?.done) {
@@ -101,12 +96,25 @@ const Index = () => {
 
   // Delete task
   const deleteTask = useCallback(
-    (type: "today" | "weekly", id: string) => {
-      const updatedTasks = tasks[type].filter((t) => t.id !== id);
-      saveTasks({ ...tasks, [type]: updatedTasks });
+    (id: string) => {
+      const updatedTasks = tasks.filter((t) => t.id !== id);
+      saveTasks(updatedTasks);
       toast({
         title: "Tarefa removida",
         description: "A tarefa foi excluída com sucesso.",
+      });
+    },
+    [tasks, saveTasks]
+  );
+
+  // Delete all tasks in a category
+  const deleteCategory = useCallback(
+    (category: string) => {
+      const updatedTasks = tasks.filter((t) => (t.category || "Sem categoria") !== category);
+      saveTasks(updatedTasks);
+      toast({
+        title: "Matéria removida",
+        description: `Todas as tarefas de "${category}" foram excluídas.`,
       });
     },
     [tasks, saveTasks]
@@ -121,7 +129,11 @@ const Index = () => {
     });
   }, []);
 
-  const allTasks = [...tasks.today, ...tasks.weekly];
+  // Get today's date string
+  const todayStr = new Date().toISOString().split("T")[0];
+  
+  // Filter tasks for today
+  const todayTasks = tasks.filter((t) => t.date === todayStr);
 
   return (
     <div className="flex min-h-screen bg-background overflow-hidden">
@@ -135,9 +147,10 @@ const Index = () => {
 
       {/* Sidebar */}
       <Sidebar
-        tasks={allTasks}
+        tasks={tasks}
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
+        onDeleteCategory={deleteCategory}
       />
 
       {/* Main Content */}
@@ -170,54 +183,27 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Column 2: Weekly Tasks */}
-        <div className="flex-1 flex flex-col gap-6 min-w-0 overflow-y-auto pr-2">
-          <div className="bg-card border border-border rounded-2xl p-6">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
-              <ListChecks className="h-4 w-4" />
-              Tarefas Semanais
-            </div>
-            <div className="space-y-3">
-              {tasks.weekly.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8 text-sm">
-                  Nenhuma tarefa semanal. Use a IA para gerar!
-                </p>
-              ) : (
-                tasks.weekly.map((task, index) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    index={index}
-                    onToggle={(id) => toggleTask("weekly", id)}
-                    onDelete={(id) => deleteTask("weekly", id)}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Column 3: Today + Notes */}
+        {/* Column 2: Today's Tasks + Notes */}
         <div className="flex-1 flex flex-col gap-6 min-w-0 overflow-y-auto pr-2">
           {/* Today Tasks */}
           <div className="bg-card border border-border rounded-2xl p-6">
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
               <CalendarDays className="h-4 w-4" />
-              Hoje
+              Tarefas de Hoje
             </div>
             <div className="space-y-3">
-              {tasks.today.length === 0 ? (
+              {todayTasks.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8 text-sm">
-                  Nenhuma tarefa para hoje
+                  Nenhuma tarefa para hoje. Use a IA para gerar!
                 </p>
               ) : (
-                tasks.today.map((task, index) => (
+                todayTasks.map((task, index) => (
                   <TaskCard
                     key={task.id}
                     task={task}
                     index={index}
-                    onToggle={(id) => toggleTask("today", id)}
-                    onDelete={(id) => deleteTask("today", id)}
+                    onToggle={toggleTask}
+                    onDelete={deleteTask}
                   />
                 ))
               )}

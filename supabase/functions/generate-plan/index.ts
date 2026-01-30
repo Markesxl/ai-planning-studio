@@ -106,9 +106,11 @@ Responda APENAS com um array JSON válido, sem texto adicional, markdown ou expl
 
 FORMATO OBRIGATÓRIO:
 [
-  {"text": "📚 Descrição da tarefa 1 (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD"},
-  {"text": "📝 Descrição da tarefa 2 (tempo estimado)", "priority": "medium", "date": "YYYY-MM-DD"}
+  {"text": "📚 Descrição da tarefa 1 (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD", "category": "${subject}"},
+  {"text": "📝 Descrição da tarefa 2 (tempo estimado)", "priority": "medium", "date": "YYYY-MM-DD", "category": "${subject}"}
 ]
+
+IMPORTANTE: Use a matéria "${subject}" como valor do campo "category" em TODAS as tarefas.
 
 Prioridades: "high" para fundamentos, "medium" para prática, "low" para revisões
 Use emojis relevantes no início de cada tarefa: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬`;

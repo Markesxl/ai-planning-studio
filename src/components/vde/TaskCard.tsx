@@ -10,6 +10,7 @@ export interface Task {
   done: boolean;
   priority?: "high" | "medium" | "low";
   date?: string;
+  category?: string;
 }
 
 interface TaskCardProps {
