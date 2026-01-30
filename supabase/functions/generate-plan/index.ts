@@ -20,6 +20,26 @@ serve(async (req) => {
       );
     }
 
+    // Limit file content to prevent token overflow (max ~50KB of text)
+    const MAX_FILE_CHARS = 50000;
+    let processedFileContent = fileContent || "";
+    
+    if (processedFileContent.length > MAX_FILE_CHARS) {
+      console.log(`File content truncated from ${processedFileContent.length} to ${MAX_FILE_CHARS} chars`);
+      processedFileContent = processedFileContent.substring(0, MAX_FILE_CHARS) + "\n\n[... conteúdo truncado por ser muito extenso ...]";
+    }
+    
+    // Check if file content is binary/unreadable (PDF raw data)
+    const binaryPattern = /[\x00-\x08\x0E-\x1F\x7F-\x9F]/;
+    if (processedFileContent && binaryPattern.test(processedFileContent.substring(0, 1000))) {
+      return new Response(
+        JSON.stringify({ 
+          error: "O arquivo parece ser um PDF ou binário. Por favor, use arquivos de texto (.txt, .md, .csv) ou copie o conteúdo diretamente no campo de prompt." 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -37,11 +57,11 @@ serve(async (req) => {
     }
 
     let fileContextSection = "";
-    if (fileContent) {
+    if (processedFileContent && processedFileContent.trim().length > 0) {
       fileContextSection = `
 CONTEÚDO DO ARQUIVO ANEXADO:
 """
-${fileContent}
+${processedFileContent}
 """
 
 Você DEVE analisar o conteúdo do arquivo acima e criar tarefas de estudo baseadas nele. 
