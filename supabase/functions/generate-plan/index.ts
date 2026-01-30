@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, prompt } = await req.json();
+    const { subject, prompt, fileContent } = await req.json();
 
     if (!subject || !prompt) {
       return new Response(
@@ -28,6 +28,33 @@ serve(async (req) => {
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
 
+    // Calculate example dates for better distribution
+    const exampleDates: string[] = [];
+    for (let i = 0; i < 30; i += 3) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
+      exampleDates.push(date.toISOString().split("T")[0]);
+    }
+
+    let fileContextSection = "";
+    if (fileContent) {
+      fileContextSection = `
+CONTEÚDO DO ARQUIVO ANEXADO:
+"""
+${fileContent}
+"""
+
+Você DEVE analisar o conteúdo do arquivo acima e criar tarefas de estudo baseadas nele. 
+O arquivo pode conter:
+- Cronograma de aulas ou provas
+- Lista de tópicos ou capítulos
+- Ementa de disciplina
+- Qualquer conteúdo educacional
+
+Extraia os tópicos principais e distribua-os como tarefas de estudo.
+`;
+    }
+
     const systemPrompt = `Você é um assistente especializado em criar planejamentos de estudo personalizados e detalhados.
 
 TAREFA: Crie um cronograma de estudos baseado nas informações do usuário, DISTRIBUINDO as tarefas ao longo do período especificado.
@@ -36,31 +63,35 @@ MATÉRIA/CURSO: ${subject}
 
 INFORMAÇÕES DO USUÁRIO:
 ${prompt}
+${fileContextSection}
 
-DATA DE INÍCIO: ${todayStr}
+DATA DE INÍCIO (HOJE): ${todayStr}
 
-INSTRUÇÕES:
+INSTRUÇÕES CRÍTICAS PARA DISTRIBUIÇÃO DE DATAS:
 1. Analise o tempo disponível, objetivos e nível do usuário
 2. Divida o conteúdo em tarefas específicas e realizáveis
-3. Crie entre 7-20 tarefas (dependendo do prazo)
-4. DISTRIBUA as tarefas ao longo dos dias/semanas especificados pelo usuário
-5. Cada tarefa deve ter uma data específica no formato YYYY-MM-DD
-6. Se o usuário mencionar "30 dias", distribua as tarefas ao longo de 30 dias a partir de hoje
-7. Se mencionar "1 semana", distribua ao longo de 7 dias
-8. Se mencionar "5 meses", distribua ao longo dos meses
-9. Ordene as tarefas de forma lógica e progressiva
-10. Inclua tempo estimado para cada tarefa
+3. Crie entre 10-25 tarefas (dependendo do prazo)
+4. DISTRIBUA AS TAREFAS AO LONGO DE TODO O PERÍODO:
+   - Se "30 dias": distribua de ${todayStr} até +30 dias
+   - Se "1 semana": distribua de ${todayStr} até +7 dias
+   - Se "5 meses": distribua uniformemente ao longo dos meses
+5. NÃO coloque todas as tarefas no mesmo dia ou dias consecutivos
+6. Use datas espaçadas: ${exampleDates.slice(0, 5).join(", ")}...
+7. Inclua tempo estimado para cada tarefa (ex: "30min", "1h", "2h")
+8. Ordene as tarefas de forma lógica e progressiva
 
-IMPORTANTE: Responda APENAS com um array JSON válido, sem texto adicional, markdown ou explicações.
+REGRA DE OURO: Se o usuário pedir um prazo de X dias, as tarefas DEVEM estar distribuídas ao longo de X dias, não concentradas nos primeiros dias!
+
+Responda APENAS com um array JSON válido, sem texto adicional, markdown ou explicações.
 
 FORMATO OBRIGATÓRIO:
 [
-  {"text": "Descrição clara da tarefa 1 (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD"},
-  {"text": "Descrição clara da tarefa 2 (tempo estimado)", "priority": "medium", "date": "YYYY-MM-DD"}
+  {"text": "📚 Descrição da tarefa 1 (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD"},
+  {"text": "📝 Descrição da tarefa 2 (tempo estimado)", "priority": "medium", "date": "YYYY-MM-DD"}
 ]
 
-Prioridades válidas: "high", "medium", "low"
-Datas: Use datas reais a partir de ${todayStr}, distribuídas conforme o prazo do usuário.`;
+Prioridades: "high" para fundamentos, "medium" para prática, "low" para revisões
+Use emojis relevantes no início de cada tarefa: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -72,7 +103,7 @@ Datas: Use datas reais a partir de ${todayStr}, distribuídas conforme o prazo d
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Por favor, crie um planejamento de estudos detalhado para: ${subject}. ${prompt}` }
+          { role: "user", content: `Crie um planejamento de estudos detalhado para: ${subject}. ${prompt}${fileContent ? " Baseie-se também no conteúdo do arquivo anexado." : ""}` }
         ],
         temperature: 0.7,
       }),
@@ -99,6 +130,8 @@ Datas: Use datas reais a partir de ${todayStr}, distribuídas conforme o prazo d
     const data = await response.json();
     const aiResponse = data.choices?.[0]?.message?.content || "";
 
+    console.log("AI Response:", aiResponse.substring(0, 500));
+
     // Parse JSON from AI response
     let tasks;
     try {
@@ -111,6 +144,20 @@ Datas: Use datas reais a partir de ${todayStr}, distribuídas conforme o prazo d
       if (!Array.isArray(tasks)) {
         throw new Error("Response is not an array");
       }
+
+      // Validate and fix dates
+      tasks = tasks.map((task: any, index: number) => {
+        // If date is missing or invalid, calculate a distributed date
+        if (!task.date || !/^\d{4}-\d{2}-\d{2}$/.test(task.date)) {
+          const daysToAdd = Math.floor(index * 2); // Spread tasks every 2 days
+          const newDate = new Date(today);
+          newDate.setDate(newDate.getDate() + daysToAdd);
+          task.date = newDate.toISOString().split("T")[0];
+        }
+        return task;
+      });
+
+      console.log("Parsed tasks with dates:", tasks.map((t: any) => ({ text: t.text.substring(0, 30), date: t.date })));
     } catch (parseError) {
       console.error("Failed to parse AI response:", aiResponse);
       throw new Error("Falha ao processar resposta da IA");
