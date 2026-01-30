@@ -1,20 +1,29 @@
 import { useState } from "react";
-import { Sparkles, GraduationCap, Lightbulb, Loader2 } from "lucide-react";
+import { Sparkles, GraduationCap, Lightbulb, Loader2, Paperclip } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { FileUploader } from "./FileUploader";
 
 interface AIPlannerProps {
-  onTasksGenerated: (tasks: { text: string; priority: string }[]) => void;
+  onTasksGenerated: (tasks: { text: string; priority: string; date?: string }[]) => void;
 }
 
 export function AIPlanner({ onTasksGenerated }: AIPlannerProps) {
   const [subject, setSubject] = useState("");
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fileContent, setFileContent] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [showFileUpload, setShowFileUpload] = useState(false);
+
+  const handleFileContent = (content: string, name: string) => {
+    setFileContent(content);
+    setFileName(name);
+  };
 
   const handleGenerate = async () => {
     if (!subject.trim()) {
@@ -26,10 +35,10 @@ export function AIPlanner({ onTasksGenerated }: AIPlannerProps) {
       return;
     }
 
-    if (!prompt.trim()) {
+    if (!prompt.trim() && !fileContent) {
       toast({
         title: "Campo obrigatório",
-        description: "Por favor, descreva o que você quer estudar!",
+        description: "Por favor, descreva o que você quer estudar ou anexe um arquivo!",
         variant: "destructive",
       });
       return;
@@ -39,7 +48,11 @@ export function AIPlanner({ onTasksGenerated }: AIPlannerProps) {
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-plan", {
-        body: { subject, prompt },
+        body: { 
+          subject, 
+          prompt: prompt || `Crie um planejamento de estudos baseado no arquivo anexado: ${fileName}`,
+          fileContent: fileContent || undefined 
+        },
       });
 
       if (error) {
@@ -50,9 +63,12 @@ export function AIPlanner({ onTasksGenerated }: AIPlannerProps) {
         onTasksGenerated(data.tasks);
         setSubject("");
         setPrompt("");
+        setFileContent("");
+        setFileName("");
+        setShowFileUpload(false);
         toast({
           title: "Sucesso! 🎉",
-          description: `${data.tasks.length} tarefas geradas pela IA`,
+          description: `${data.tasks.length} tarefas geradas e distribuídas pela IA`,
         });
       } else {
         throw new Error("Resposta inválida da IA");
@@ -98,9 +114,34 @@ export function AIPlanner({ onTasksGenerated }: AIPlannerProps) {
           placeholder={`Descreva o que você quer estudar, seus objetivos, prazo disponível...
 
 Ex: Preciso estudar cálculo diferencial em 30 dias, tenho 2 horas por dia, foco em derivadas e integrais.`}
-          className="bg-background border-border focus:border-primary transition-colors min-h-[120px] resize-none"
+          className="bg-background border-border focus:border-primary transition-colors min-h-[100px] resize-none"
           disabled={isLoading}
         />
+      </div>
+
+      {/* File Upload Toggle */}
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowFileUpload(!showFileUpload)}
+          className={cn(
+            "w-full justify-start gap-2 text-muted-foreground hover:text-foreground",
+            (showFileUpload || fileContent) && "border-primary text-primary"
+          )}
+          disabled={isLoading}
+        >
+          <Paperclip className="h-4 w-4" />
+          {fileContent ? `📎 ${fileName}` : "Anexar arquivo (cronograma, ementa...)"}
+        </Button>
+
+        {showFileUpload && (
+          <FileUploader
+            onFileContent={handleFileContent}
+            isLoading={isLoading}
+          />
+        )}
       </div>
 
       {/* Generate Button */}
