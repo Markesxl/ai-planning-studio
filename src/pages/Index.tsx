@@ -129,11 +129,22 @@ const Index = () => {
     });
   }, []);
 
-  // Get today's date string
+  // Get selected date string for filtering
+  const selectedDateStr = selectedDate.toISOString().split("T")[0];
   const todayStr = new Date().toISOString().split("T")[0];
+  const isToday = selectedDateStr === todayStr;
   
-  // Filter tasks for today
-  const todayTasks = tasks.filter((t) => t.date === todayStr);
+  // Filter tasks for selected date
+  const filteredTasks = tasks.filter((t) => t.date === selectedDateStr);
+  
+  // Format selected date for display
+  const formatDisplayDate = (date: Date) => {
+    return date.toLocaleDateString("pt-BR", { 
+      weekday: "long", 
+      day: "numeric", 
+      month: "long" 
+    });
+  };
 
   return (
     <div className="flex min-h-screen bg-background overflow-hidden">
@@ -185,19 +196,21 @@ const Index = () => {
 
         {/* Column 2: Today's Tasks + Notes */}
         <div className="flex-1 flex flex-col gap-6 min-w-0 overflow-y-auto pr-2">
-          {/* Today Tasks */}
+          {/* Selected Date Tasks */}
           <div className="bg-card border border-border rounded-2xl p-6">
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
               <CalendarDays className="h-4 w-4" />
-              Tarefas de Hoje
+              {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
             </div>
             <div className="space-y-3">
-              {todayTasks.length === 0 ? (
+              {filteredTasks.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8 text-sm">
-                  Nenhuma tarefa para hoje. Use a IA para gerar!
+                  {isToday 
+                    ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
+                    : "Nenhuma tarefa para esta data."}
                 </p>
               ) : (
-                todayTasks.map((task, index) => (
+                filteredTasks.map((task, index) => (
                   <TaskCard
                     key={task.id}
                     task={task}
