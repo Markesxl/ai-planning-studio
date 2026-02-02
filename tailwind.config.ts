@@ -64,12 +64,6 @@ export default {
           primary: "hsl(var(--glow-primary))",
           danger: "hsl(var(--glow-danger))",
         },
-        stat: {
-          orange: "hsl(var(--stat-orange))",
-          blue: "hsl(var(--stat-blue))",
-          yellow: "hsl(var(--stat-yellow))",
-          purple: "hsl(var(--stat-purple))",
-        },
       },
       borderRadius: {
         lg: "var(--radius)",
