@@ -1,6 +1,7 @@
-import { Bot } from "lucide-react";
+import { Bot, Timer } from "lucide-react";
 import { Calendar } from "./Calendar";
 import { CategoryProgress } from "./CategoryProgress";
+import { PomodoroTimer } from "./PomodoroTimer";
 import { Task } from "./TaskCard";
 
 interface SidebarProps {
@@ -8,9 +9,10 @@ interface SidebarProps {
   selectedDate?: Date;
   onSelectDate?: (date: Date) => void;
   onDeleteCategory?: (category: string) => void;
+  onPomodoroComplete?: () => void;
 }
 
-export function Sidebar({ tasks, selectedDate, onSelectDate, onDeleteCategory }: SidebarProps) {
+export function Sidebar({ tasks, selectedDate, onSelectDate, onDeleteCategory, onPomodoroComplete }: SidebarProps) {
   const taskDates = tasks
     .filter((t) => t.date)
     .map((t) => t.date as string);
@@ -35,6 +37,15 @@ export function Sidebar({ tasks, selectedDate, onSelectDate, onDeleteCategory }:
           onSelectDate={onSelectDate}
           taskDates={taskDates}
         />
+      </div>
+
+      {/* Pomodoro Timer */}
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
+          <Timer className="h-4 w-4" />
+          Modo Foco
+        </div>
+        <PomodoroTimer onComplete={onPomodoroComplete} />
       </div>
 
       {/* Category Progress */}

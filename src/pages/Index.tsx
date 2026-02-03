@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bot, CalendarDays, Timer } from "lucide-react";
+import { Bot, CalendarDays } from "lucide-react";
 import { Sidebar } from "@/components/vde/Sidebar";
-import { AIPlanner } from "@/components/vde/AIPlanner";
-import { PomodoroTimer } from "@/components/vde/PomodoroTimer";
+import { AddSubjectModal } from "@/components/vde/AddSubjectModal";
+import { TaskNotesModal } from "@/components/vde/TaskNotesModal";
 import { TaskCard, Task } from "@/components/vde/TaskCard";
-import { NotesArea } from "@/components/vde/NotesArea";
 import { FeedbackOverlay } from "@/components/vde/FeedbackOverlay";
 import { toast } from "@/hooks/use-toast";
 
@@ -13,6 +12,8 @@ const STORAGE_KEY = "vde_v4_data";
 const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [feedback, setFeedback] = useState<{
     show: boolean;
     type: "loading" | "success" | "error" | "complete";
@@ -53,7 +54,7 @@ const Index = () => {
 
   // Handle AI-generated tasks
   const handleTasksGenerated = useCallback(
-    (aiTasks: { text: string; priority: string; date?: string; category?: string }[]) => {
+    (aiTasks: { text: string; priority: string; date?: string; category?: string; subject?: string; description?: string }[]) => {
       const newTasks: Task[] = aiTasks.map((t, i) => ({
         id: `${Date.now()}-${i}`,
         text: t.text,
@@ -61,6 +62,8 @@ const Index = () => {
         priority: (t.priority as "high" | "medium" | "low") || "medium",
         date: t.date || new Date().toISOString().split("T")[0],
         category: t.category || "Geral",
+        subject: t.subject,
+        description: t.description || t.text,
       }));
 
       saveTasks([...tasks, ...newTasks]);
@@ -120,6 +123,27 @@ const Index = () => {
     [tasks, saveTasks]
   );
 
+  // Open task notes modal
+  const handleTaskClick = useCallback((task: Task) => {
+    setSelectedTask(task);
+    setNotesModalOpen(true);
+  }, []);
+
+  // Save task notes
+  const handleSaveNotes = useCallback(
+    (taskId: string, notes: string) => {
+      const updatedTasks = tasks.map((t) =>
+        t.id === taskId ? { ...t, notes } : t
+      );
+      saveTasks(updatedTasks);
+      toast({
+        title: "Anotações salvas",
+        description: "Suas anotações foram salvas com sucesso.",
+      });
+    },
+    [tasks, saveTasks]
+  );
+
   // Pomodoro complete handler
   const handlePomodoroComplete = useCallback(() => {
     setFeedback({
@@ -156,76 +180,66 @@ const Index = () => {
         onHide={() => setFeedback((prev) => ({ ...prev, show: false }))}
       />
 
-      {/* Sidebar */}
+      {/* Task Notes Modal */}
+      <TaskNotesModal
+        task={selectedTask}
+        open={notesModalOpen}
+        onOpenChange={setNotesModalOpen}
+        onSaveNotes={handleSaveNotes}
+      />
+
+      {/* Sidebar with Pomodoro */}
       <Sidebar
         tasks={tasks}
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         onDeleteCategory={deleteCategory}
+        onPomodoroComplete={handlePomodoroComplete}
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex gap-6 p-8 overflow-hidden">
-        {/* Column 1: AI Planner + Pomodoro */}
-        <div className="flex-1 flex flex-col gap-6 min-w-0 overflow-y-auto pr-2">
-          {/* Title Card */}
-          <div className="bg-card border border-border rounded-2xl p-6 border-l-4 border-l-primary bg-gradient-to-r from-secondary to-card">
-            <div className="flex items-center gap-3 text-primary mb-2">
-              <Bot className="h-6 w-6" />
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Assistente Inteligente
-              </span>
-            </div>
-            <h1 className="text-3xl font-black">🤖 Planejamento AI</h1>
+      <main className="flex-1 flex flex-col gap-6 p-8 overflow-y-auto">
+        {/* Title Card */}
+        <div className="bg-card border border-border rounded-2xl p-6 border-l-4 border-l-primary bg-gradient-to-r from-secondary to-card">
+          <div className="flex items-center gap-3 text-primary mb-2">
+            <Bot className="h-6 w-6" />
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Assistente Inteligente
+            </span>
           </div>
-
-          {/* AI Planner Card */}
-          <div className="bg-card border border-border rounded-2xl p-6 hover:border-primary hover:shadow-lg transition-all duration-300">
-            <AIPlanner onTasksGenerated={handleTasksGenerated} />
-          </div>
-
-          {/* Pomodoro Card */}
-          <div className="bg-card border border-border rounded-2xl p-6 hover:border-primary hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-6">
-              <Timer className="h-4 w-4" />
-              Pomodoro Timer
-            </div>
-            <PomodoroTimer onComplete={handlePomodoroComplete} />
-          </div>
+          <h1 className="text-3xl font-black">🤖 Planejamento AI</h1>
         </div>
 
-        {/* Column 2: Today's Tasks + Notes */}
-        <div className="flex-1 flex flex-col gap-6 min-w-0 overflow-y-auto pr-2">
-          {/* Selected Date Tasks */}
-          <div className="bg-card border border-border rounded-2xl p-6">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
-              <CalendarDays className="h-4 w-4" />
-              {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
-            </div>
-            <div className="space-y-3">
-              {filteredTasks.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8 text-sm">
-                  {isToday 
-                    ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
-                    : "Nenhuma tarefa para esta data."}
-                </p>
-              ) : (
-                filteredTasks.map((task, index) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    index={index}
-                    onToggle={toggleTask}
-                    onDelete={deleteTask}
-                  />
-                ))
-              )}
-            </div>
-          </div>
+        {/* Add Subject Button */}
+        <div className="bg-card border border-border rounded-2xl p-6 hover:border-primary hover:shadow-lg transition-all duration-300">
+          <AddSubjectModal onTasksGenerated={handleTasksGenerated} />
+        </div>
 
-          {/* Notes */}
-          <div className="bg-card border border-border rounded-2xl p-6">
-            <NotesArea />
+        {/* Tasks Section */}
+        <div className="bg-card border border-border rounded-2xl p-6 flex-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
+            <CalendarDays className="h-4 w-4" />
+            {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
+          </div>
+          <div className="space-y-3">
+            {filteredTasks.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8 text-sm">
+                {isToday 
+                  ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
+                  : "Nenhuma tarefa para esta data."}
+              </p>
+            ) : (
+              filteredTasks.map((task, index) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  index={index}
+                  onToggle={toggleTask}
+                  onDelete={deleteTask}
+                  onClick={handleTaskClick}
+                />
+              ))
+            )}
           </div>
         </div>
       </main>
