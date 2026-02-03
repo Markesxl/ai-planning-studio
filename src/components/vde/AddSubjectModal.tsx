@@ -81,7 +81,6 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
       }
 
       if (data?.tasks && Array.isArray(data.tasks)) {
-        // Add subject to all tasks
         const tasksWithSubject = data.tasks.map((task: any) => ({
           ...task,
           category: course,
@@ -90,7 +89,6 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
         
         onTasksGenerated(tasksWithSubject);
         
-        // Reset form
         setCourse("");
         setSubject("");
         setPrompt("");
@@ -122,32 +120,39 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
-          className="w-full font-bold uppercase text-sm py-6 bg-primary hover:bg-primary/90 glow-primary"
+          className={cn(
+            "w-full font-bold uppercase text-sm py-6 rounded-2xl",
+            "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90",
+            "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+            "transition-all duration-300 hover:scale-[1.02]"
+          )}
         >
           <Plus className="h-5 w-5 mr-2" />
           Adicionar Matéria
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] glass-card border-border/50 rounded-3xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
             Adicionar Matéria com IA
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 mt-4">
+        <div className="space-y-5 mt-4">
           {/* Course Input */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              <GraduationCap className="h-4 w-4" />
+              <GraduationCap className="h-4 w-4 text-primary/70" />
               Matéria/Curso
             </label>
             <Input
               value={course}
               onChange={(e) => setCourse(e.target.value)}
               placeholder="Ex: Matemática, Python, ENEM..."
-              className="bg-background border-border focus:border-primary transition-colors"
+              className="glass-subtle border-border/50 rounded-xl h-11 focus:border-primary/50 focus:ring-primary/20 transition-all"
               disabled={isLoading}
             />
           </div>
@@ -155,14 +160,14 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
           {/* Subject/Topic Input */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              <BookOpen className="h-4 w-4" />
+              <BookOpen className="h-4 w-4 text-primary/70" />
               Assunto
             </label>
             <Input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Ex: Derivadas, Loops em Python, Redação..."
-              className="bg-background border-border focus:border-primary transition-colors"
+              className="glass-subtle border-border/50 rounded-xl h-11 focus:border-primary/50 focus:ring-primary/20 transition-all"
               disabled={isLoading}
             />
           </div>
@@ -170,7 +175,7 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
           {/* Prompt Textarea */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              <Lightbulb className="h-4 w-4" />
+              <Lightbulb className="h-4 w-4 text-primary/70" />
               Detalhes do Estudo
             </label>
             <Textarea
@@ -179,7 +184,7 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
               placeholder={`Descreva o que você quer estudar, objetivos, prazo...
 
 Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.`}
-              className="bg-background border-border focus:border-primary transition-colors min-h-[100px] resize-none"
+              className="glass-subtle border-border/50 rounded-xl min-h-[100px] resize-none focus:border-primary/50 focus:ring-primary/20 transition-all"
               disabled={isLoading}
             />
           </div>
@@ -192,8 +197,9 @@ Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.`}
               size="sm"
               onClick={() => setShowFileUpload(!showFileUpload)}
               className={cn(
-                "w-full justify-start gap-2 text-muted-foreground hover:text-foreground",
-                (showFileUpload || fileContent) && "border-primary text-primary"
+                "w-full justify-start gap-2 rounded-xl h-10",
+                "border-border/50 hover:bg-secondary/50",
+                (showFileUpload || fileContent) && "border-primary/50 bg-primary/5 text-primary"
               )}
               disabled={isLoading}
             >
@@ -214,10 +220,10 @@ Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.`}
             onClick={handleGenerate}
             disabled={isLoading}
             className={cn(
-              "w-full font-bold uppercase text-sm py-6 transition-all duration-300",
+              "w-full font-bold uppercase text-sm py-6 rounded-2xl transition-all duration-300",
               isLoading
                 ? "bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] animate-shimmer"
-                : "bg-primary hover:bg-primary/90"
+                : "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90 shadow-lg shadow-primary/25"
             )}
           >
             {isLoading ? (

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PomodoroTimerProps {
-  duration?: number; // in minutes
+  duration?: number;
   onComplete?: () => void;
 }
 
@@ -20,7 +20,6 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
           if (prev <= 1) {
             setIsRunning(false);
             onComplete?.();
-            // Request notification
             if ("Notification" in window && Notification.permission === "granted") {
               new Notification("VDE AI", { body: "Sessão Pomodoro concluída! 🎉" });
             }
@@ -56,35 +55,46 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
   const progress = ((duration * 60 - seconds) / (duration * 60)) * 100;
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-5">
       {/* Timer Display */}
       <div className="relative">
+        {/* Glow effect when running */}
+        {isRunning && (
+          <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full animate-pulse" />
+        )}
+        
         <div
           className={cn(
-            "text-5xl font-black text-primary tracking-wider transition-all duration-300",
-            isRunning && "animate-pulse-glow"
+            "relative text-5xl font-black tracking-wider transition-all duration-300",
+            isRunning ? "text-primary" : "text-foreground"
           )}
         >
           {formatTime(seconds)}
         </div>
-        {/* Progress bar */}
-        <div className="mt-4 h-1 w-full bg-secondary rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary transition-all duration-1000 ease-linear"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full h-1.5 bg-secondary/50 rounded-full overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-1000 ease-linear",
+            isRunning 
+              ? "bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] animate-shimmer" 
+              : "bg-primary"
+          )}
+          style={{ width: `${progress}%` }}
+        />
       </div>
 
       {/* Controls */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 w-full">
         <Button
           onClick={toggleTimer}
           className={cn(
-            "w-full font-bold uppercase transition-all duration-300",
+            "flex-1 font-bold uppercase text-sm rounded-xl h-11 transition-all duration-300",
             isRunning
-              ? "bg-destructive hover:bg-destructive/90 glow-danger"
-              : "bg-primary hover:bg-primary/90 glow-primary"
+              ? "bg-destructive/90 hover:bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20"
+              : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
           )}
         >
           {isRunning ? (
@@ -95,14 +105,14 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
           ) : (
             <>
               <Play className="h-4 w-4 mr-2" />
-              Iniciar Foco
+              Iniciar
             </>
           )}
         </Button>
         <Button
           variant="outline"
           onClick={resetTimer}
-          className="border-border hover:bg-secondary"
+          className="h-11 w-11 rounded-xl border-border/50 hover:bg-secondary/50 hover:border-primary/30"
         >
           <RotateCcw className="h-4 w-4" />
         </Button>
