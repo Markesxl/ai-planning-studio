@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bot, CalendarDays } from "lucide-react";
+import { Bot, CalendarDays, Sparkles } from "lucide-react";
 import { Sidebar } from "@/components/vde/Sidebar";
 import { AddSubjectModal } from "@/components/vde/AddSubjectModal";
 import { TaskNotesModal } from "@/components/vde/TaskNotesModal";
@@ -26,13 +26,11 @@ const Index = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Handle migration from old format
         if (Array.isArray(parsed)) {
           setTasks(parsed);
         } else if (parsed.tasks) {
           setTasks(parsed.tasks);
         } else if (parsed.today || parsed.weekly) {
-          // Migrate from old format
           setTasks([...(parsed.today || []), ...(parsed.weekly || [])]);
         }
       } catch {
@@ -40,19 +38,16 @@ const Index = () => {
       }
     }
 
-    // Request notification permission
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
   }, []);
 
-  // Save tasks to localStorage
   const saveTasks = useCallback((newTasks: Task[]) => {
     setTasks(newTasks);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newTasks));
   }, []);
 
-  // Handle AI-generated tasks
   const handleTasksGenerated = useCallback(
     (aiTasks: { text: string; priority: string; date?: string; category?: string; subject?: string; description?: string }[]) => {
       const newTasks: Task[] = aiTasks.map((t, i) => ({
@@ -77,7 +72,6 @@ const Index = () => {
     [tasks, saveTasks]
   );
 
-  // Toggle task completion
   const toggleTask = useCallback(
     (id: string) => {
       const updatedTasks = tasks.map((t) =>
@@ -97,7 +91,6 @@ const Index = () => {
     [tasks, saveTasks]
   );
 
-  // Delete task
   const deleteTask = useCallback(
     (id: string) => {
       const updatedTasks = tasks.filter((t) => t.id !== id);
@@ -110,7 +103,6 @@ const Index = () => {
     [tasks, saveTasks]
   );
 
-  // Delete all tasks in a category
   const deleteCategory = useCallback(
     (category: string) => {
       const updatedTasks = tasks.filter((t) => (t.category || "Sem categoria") !== category);
@@ -123,13 +115,11 @@ const Index = () => {
     [tasks, saveTasks]
   );
 
-  // Open task notes modal
   const handleTaskClick = useCallback((task: Task) => {
     setSelectedTask(task);
     setNotesModalOpen(true);
   }, []);
 
-  // Save task notes
   const handleSaveNotes = useCallback(
     (taskId: string, notes: string) => {
       const updatedTasks = tasks.map((t) =>
@@ -144,7 +134,6 @@ const Index = () => {
     [tasks, saveTasks]
   );
 
-  // Pomodoro complete handler
   const handlePomodoroComplete = useCallback(() => {
     setFeedback({
       show: true,
@@ -153,15 +142,12 @@ const Index = () => {
     });
   }, []);
 
-  // Get selected date string for filtering
   const selectedDateStr = selectedDate.toISOString().split("T")[0];
   const todayStr = new Date().toISOString().split("T")[0];
   const isToday = selectedDateStr === todayStr;
   
-  // Filter tasks for selected date
   const filteredTasks = tasks.filter((t) => t.date === selectedDateStr);
   
-  // Format selected date for display
   const formatDisplayDate = (date: Date) => {
     return date.toLocaleDateString("pt-BR", { 
       weekday: "long", 
@@ -171,7 +157,13 @@ const Index = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background overflow-hidden">
+    <div className="flex min-h-screen bg-background overflow-hidden relative">
+      {/* Ambient background effects */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px] animate-float" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/3 rounded-full blur-[150px] animate-float" style={{ animationDelay: "-3s" }} />
+      </div>
+
       {/* Feedback Overlay */}
       <FeedbackOverlay
         show={feedback.show}
@@ -188,7 +180,7 @@ const Index = () => {
         onSaveNotes={handleSaveNotes}
       />
 
-      {/* Sidebar with Pomodoro */}
+      {/* Sidebar */}
       <Sidebar
         tasks={tasks}
         selectedDate={selectedDate}
@@ -198,36 +190,59 @@ const Index = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col gap-6 p-8 overflow-y-auto">
-        {/* Title Card */}
-        <div className="bg-card border border-border rounded-2xl p-6 border-l-4 border-l-primary bg-gradient-to-r from-secondary to-card">
-          <div className="flex items-center gap-3 text-primary mb-2">
-            <Bot className="h-6 w-6" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Assistente Inteligente
-            </span>
+      <main className="flex-1 flex flex-col gap-6 p-8 overflow-y-auto relative z-10">
+        {/* Hero Card - AI Planner */}
+        <div className="glass-card rounded-3xl p-8 glass-card-hover relative overflow-hidden">
+          {/* Decorative gradient */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl" />
+          
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                <Bot className="h-6 w-6 text-primary" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-widest text-primary/80">
+                Assistente Inteligente
+              </span>
+            </div>
+            
+            <h1 className="text-3xl font-black mb-6 flex items-center gap-3">
+              <Sparkles className="h-7 w-7 text-primary animate-pulse" />
+              Planejamento AI
+            </h1>
+            
+            <AddSubjectModal onTasksGenerated={handleTasksGenerated} />
           </div>
-          <h1 className="text-3xl font-black">🤖 Planejamento AI</h1>
-        </div>
-
-        {/* Add Subject Button */}
-        <div className="bg-card border border-border rounded-2xl p-6 hover:border-primary hover:shadow-lg transition-all duration-300">
-          <AddSubjectModal onTasksGenerated={handleTasksGenerated} />
         </div>
 
         {/* Tasks Section */}
-        <div className="bg-card border border-border rounded-2xl p-6 flex-1">
-          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
-            <CalendarDays className="h-4 w-4" />
-            {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
+        <div className="glass-card rounded-3xl p-6 flex-1 glass-card-hover">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+              <CalendarDays className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">
+                {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {filteredTasks.length} {filteredTasks.length === 1 ? "tarefa" : "tarefas"} programadas
+              </p>
+            </div>
           </div>
+          
           <div className="space-y-3">
             {filteredTasks.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8 text-sm">
-                {isToday 
-                  ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
-                  : "Nenhuma tarefa para esta data."}
-              </p>
+              <div className="glass-subtle rounded-2xl p-12 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                  <CalendarDays className="h-8 w-8 text-primary/50" />
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  {isToday 
+                    ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
+                    : "Nenhuma tarefa para esta data."}
+                </p>
+              </div>
             ) : (
               filteredTasks.map((task, index) => (
                 <TaskCard

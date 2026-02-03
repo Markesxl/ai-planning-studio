@@ -56,16 +56,13 @@ export function Calendar({ selectedDate, onSelectDate, taskDates = [] }: Calenda
     }
   };
 
-  // Generate calendar grid
   const weeks: (number | null)[][] = [];
   let currentWeek: (number | null)[] = [];
   
-  // Fill in empty days before the first day of the month
   for (let i = 0; i < firstDayOfMonth; i++) {
     currentWeek.push(null);
   }
   
-  // Fill in the days of the month
   for (let day = 1; day <= daysInMonth; day++) {
     currentWeek.push(day);
     if (currentWeek.length === 7) {
@@ -74,7 +71,6 @@ export function Calendar({ selectedDate, onSelectDate, taskDates = [] }: Calenda
     }
   }
   
-  // Fill in remaining days
   if (currentWeek.length > 0) {
     while (currentWeek.length < 7) {
       currentWeek.push(null);
@@ -90,7 +86,7 @@ export function Calendar({ selectedDate, onSelectDate, taskDates = [] }: Calenda
           variant="ghost"
           size="icon"
           onClick={() => changeMonth(-1)}
-          className="text-primary hover:bg-primary/10"
+          className="h-8 w-8 rounded-xl text-primary hover:bg-primary/10 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -101,48 +97,47 @@ export function Calendar({ selectedDate, onSelectDate, taskDates = [] }: Calenda
           variant="ghost"
           size="icon"
           onClick={() => changeMonth(1)}
-          className="text-primary hover:bg-primary/10"
+          className="h-8 w-8 rounded-xl text-primary hover:bg-primary/10 transition-colors"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Calendar Table */}
-      <table className="w-full border-collapse text-center text-xs">
-        <thead>
-          <tr>
-            {DAY_NAMES.map((day, i) => (
-              <th key={i} className="py-2 text-muted-foreground font-medium">
-                {day}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {weeks.map((week, weekIndex) => (
-            <tr key={weekIndex}>
-              {week.map((day, dayIndex) => (
-                <td
-                  key={dayIndex}
-                  onClick={() => day && handleDayClick(day)}
-                  className={cn(
-                    "py-2 relative cursor-pointer rounded-lg transition-all duration-200",
-                    day && "hover:bg-primary/20",
-                    day && isToday(day) && "bg-primary text-primary-foreground font-black",
-                    day && isSelected(day) && !isToday(day) && "border border-primary text-primary",
-                    !day && "cursor-default"
-                  )}
-                >
-                  {day}
-                  {day && hasTask(day) && (
-                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {/* Header */}
+        {DAY_NAMES.map((day, i) => (
+          <div 
+            key={i} 
+            className="text-center py-2 text-xs text-muted-foreground/70 font-medium"
+          >
+            {day}
+          </div>
+        ))}
+
+        {/* Days */}
+        {weeks.flat().map((day, index) => (
+          <div
+            key={index}
+            onClick={() => day && handleDayClick(day)}
+            className={cn(
+              "relative aspect-square flex items-center justify-center text-xs rounded-xl transition-all duration-200",
+              day && "cursor-pointer hover:bg-primary/15",
+              day && isToday(day) && "bg-primary text-primary-foreground font-black shadow-lg shadow-primary/20",
+              day && isSelected(day) && !isToday(day) && "ring-2 ring-primary/50 bg-primary/10 text-primary font-semibold",
+              !day && "cursor-default"
+            )}
+          >
+            {day}
+            {day && hasTask(day) && (
+              <span className={cn(
+                "absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full",
+                isToday(day) ? "bg-primary-foreground" : "bg-primary"
+              )} />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
