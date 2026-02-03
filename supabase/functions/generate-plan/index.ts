@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { subject, prompt, fileContent } = await req.json();
+    const { subject, topic, prompt, fileContent } = await req.json();
 
     if (!subject || !prompt) {
       return new Response(
@@ -75,11 +75,13 @@ Extraia os tópicos principais e distribua-os como tarefas de estudo.
 `;
     }
 
+    const topicInfo = topic ? `\nASSUNTO/TÓPICO: ${topic}` : "";
+    
     const systemPrompt = `Você é um assistente especializado em criar planejamentos de estudo personalizados e detalhados.
 
 TAREFA: Crie um cronograma de estudos baseado nas informações do usuário, DISTRIBUINDO as tarefas ao longo do período especificado.
 
-MATÉRIA/CURSO: ${subject}
+MATÉRIA/CURSO: ${subject}${topicInfo}
 
 INFORMAÇÕES DO USUÁRIO:
 ${prompt}
@@ -106,14 +108,19 @@ Responda APENAS com um array JSON válido, sem texto adicional, markdown ou expl
 
 FORMATO OBRIGATÓRIO:
 [
-  {"text": "📚 Descrição da tarefa 1 (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD", "category": "${subject}"},
-  {"text": "📝 Descrição da tarefa 2 (tempo estimado)", "priority": "medium", "date": "YYYY-MM-DD", "category": "${subject}"}
+  {"text": "Título curto da tarefa", "description": "Descrição detalhada do que estudar (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"},
+  {"text": "Título curto", "description": "Descrição do conteúdo a estudar", "priority": "medium", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"}
 ]
 
-IMPORTANTE: Use a matéria "${subject}" como valor do campo "category" em TODAS as tarefas.
+CAMPOS OBRIGATÓRIOS:
+- "text": Título curto da tarefa (máx 50 caracteres)
+- "description": Descrição detalhada do que será estudado com tempo estimado
+- "category": Sempre "${subject}"
+- "subject": Sempre "${topic || "Geral"}"
+- "priority": "high" para fundamentos, "medium" para prática, "low" para revisões
+- "date": Data no formato YYYY-MM-DD
 
-Prioridades: "high" para fundamentos, "medium" para prática, "low" para revisões
-Use emojis relevantes no início de cada tarefa: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬`;
+Use emojis no início do texto: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
