@@ -79,7 +79,7 @@ Extraia os tópicos principais e distribua-os como tarefas de estudo.
     
     const systemPrompt = `Você é um assistente especializado em criar planejamentos de estudo personalizados e detalhados.
 
-TAREFA: Crie um cronograma de estudos baseado nas informações do usuário, DISTRIBUINDO as tarefas ao longo do período especificado.
+TAREFA: Crie um cronograma de estudos baseado nas informações do usuário.
 
 MATÉRIA/CURSO: ${subject}${topicInfo}
 
@@ -93,16 +93,17 @@ INSTRUÇÕES CRÍTICAS PARA DISTRIBUIÇÃO DE DATAS:
 1. Analise o tempo disponível, objetivos e nível do usuário
 2. Divida o conteúdo em tarefas específicas e realizáveis
 3. Crie entre 10-25 tarefas (dependendo do prazo)
-4. DISTRIBUA AS TAREFAS AO LONGO DE TODO O PERÍODO:
-   - Se "30 dias": distribua de ${todayStr} até +30 dias
-   - Se "1 semana": distribua de ${todayStr} até +7 dias
-   - Se "5 meses": distribua uniformemente ao longo dos meses
-5. NÃO coloque todas as tarefas no mesmo dia ou dias consecutivos
-6. Use datas espaçadas: ${exampleDates.slice(0, 5).join(", ")}...
-7. Inclua tempo estimado para cada tarefa (ex: "30min", "1h", "2h")
-8. Ordene as tarefas de forma lógica e progressiva
+4. **REGRA IMPORTANTE DE DISTRIBUIÇÃO**:
+   - Se o usuário pedir "dias consecutivos" ou "todo dia": coloque UMA tarefa POR DIA, em dias seguidos
+   - Se o usuário pedir "30 dias": distribua uniformemente ao longo de 30 dias
+   - Se o usuário pedir "intensivo": pode colocar 2-3 tarefas por dia
+   - NUNCA pule dias a menos que explicitamente pedido
+5. Exemplo para 7 dias consecutivos: dia 1, dia 2, dia 3, dia 4, dia 5, dia 6, dia 7
+6. Inclua tempo estimado para cada tarefa (ex: "30min", "1h", "2h")
+7. Ordene as tarefas de forma lógica e progressiva
 
-REGRA DE OURO: Se o usuário pedir um prazo de X dias, as tarefas DEVEM estar distribuídas ao longo de X dias, não concentradas nos primeiros dias!
+PADRÃO DE DATAS (use estas datas como referência para distribuição consecutiva):
+${exampleDates.map((d, i) => `Dia ${i + 1}: ${d}`).join(", ")}
 
 Responda APENAS com um array JSON válido, sem texto adicional, markdown ou explicações.
 
@@ -118,7 +119,7 @@ CAMPOS OBRIGATÓRIOS:
 - "category": Sempre "${subject}"
 - "subject": Sempre "${topic || "Geral"}"
 - "priority": "high" para fundamentos, "medium" para prática, "low" para revisões
-- "date": Data no formato YYYY-MM-DD
+- "date": Data no formato YYYY-MM-DD (use datas CONSECUTIVAS quando apropriado!)
 
 Use emojis no início do texto: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬`;
 
