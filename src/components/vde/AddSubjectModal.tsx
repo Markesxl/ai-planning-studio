@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { FileUploader } from "./FileUploader";
+import { DocumentUploader } from "./DocumentUploader";
 
 interface AddSubjectModalProps {
   onTasksGenerated: (tasks: { text: string; priority: string; date?: string; category?: string; subject?: string; description?: string }[]) => void;
@@ -121,17 +121,17 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
       <DialogTrigger asChild>
         <Button 
           className={cn(
-            "w-full font-bold uppercase text-sm py-6 rounded-2xl",
+            "w-full font-bold uppercase text-xs md:text-sm py-4 md:py-6 rounded-xl md:rounded-2xl",
             "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
-            "transition-all duration-300 hover:scale-[1.02]"
+            "transition-all duration-300 hover:scale-[1.02] micro-press"
           )}
         >
-          <Plus className="h-5 w-5 mr-2" />
+          <Plus className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2" />
           Adicionar Matéria
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] glass-card border-border/50 rounded-3xl">
+      <DialogContent className="w-[95vw] max-w-[500px] glass-card border-border/50 rounded-2xl md:rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-xl">
             <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
@@ -208,7 +208,7 @@ Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.`}
             </Button>
 
             {showFileUpload && (
-              <FileUploader
+              <DocumentUploader
                 onFileContent={handleFileContent}
                 isLoading={isLoading}
               />

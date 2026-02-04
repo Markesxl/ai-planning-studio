@@ -55,18 +55,18 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
   const progress = ((duration * 60 - seconds) / (duration * 60)) * 100;
 
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="flex flex-col items-center gap-4 md:gap-5">
       {/* Timer Display */}
       <div className="relative">
         {/* Glow effect when running */}
         {isRunning && (
-          <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full animate-pulse" />
+          <div className="absolute inset-0 blur-2xl bg-primary/20 rounded-full animate-glow-pulse" />
         )}
         
         <div
           className={cn(
-            "relative text-5xl font-black tracking-wider transition-all duration-300",
-            isRunning ? "text-primary" : "text-foreground"
+            "relative text-4xl md:text-5xl font-black tracking-wider transition-all duration-500",
+            isRunning ? "text-primary scale-105" : "text-foreground"
           )}
         >
           {formatTime(seconds)}
@@ -74,7 +74,7 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1.5 bg-secondary/50 rounded-full overflow-hidden">
+      <div className="w-full h-1 md:h-1.5 bg-secondary/50 rounded-full overflow-hidden">
         <div
           className={cn(
             "h-full rounded-full transition-all duration-1000 ease-linear",
@@ -87,11 +87,11 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
       </div>
 
       {/* Controls */}
-      <div className="flex gap-3 w-full">
+      <div className="flex gap-2 md:gap-3 w-full">
         <Button
           onClick={toggleTimer}
           className={cn(
-            "flex-1 font-bold uppercase text-sm rounded-xl h-11 transition-all duration-300",
+            "flex-1 font-bold uppercase text-xs md:text-sm rounded-lg md:rounded-xl h-9 md:h-11 transition-all duration-300 micro-press",
             isRunning
               ? "bg-destructive/90 hover:bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20"
               : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
@@ -99,12 +99,12 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
         >
           {isRunning ? (
             <>
-              <Square className="h-4 w-4 mr-2" />
+              <Square className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
               Parar
             </>
           ) : (
             <>
-              <Play className="h-4 w-4 mr-2" />
+              <Play className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
               Iniciar
             </>
           )}
@@ -112,9 +112,9 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
         <Button
           variant="outline"
           onClick={resetTimer}
-          className="h-11 w-11 rounded-xl border-border/50 hover:bg-secondary/50 hover:border-primary/30"
+          className="h-9 w-9 md:h-11 md:w-11 rounded-lg md:rounded-xl border-border/50 hover:bg-secondary/50 hover:border-primary/30 micro-bounce"
         >
-          <RotateCcw className="h-4 w-4" />
+          <RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
         </Button>
       </div>
     </div>
