@@ -5,9 +5,10 @@ import { useMemo } from "react";
 
 interface StudyStreakProps {
   tasks: Task[];
+  compact?: boolean;
 }
 
-export function StudyStreak({ tasks }: StudyStreakProps) {
+export function StudyStreak({ tasks, compact = false }: StudyStreakProps) {
   const stats = useMemo(() => {
     const completedTasks = tasks.filter((t) => t.done);
     const today = new Date();
@@ -62,8 +63,71 @@ export function StudyStreak({ tasks }: StudyStreakProps) {
 
   const streakLevel = stats.streak >= 7 ? "legendary" : stats.streak >= 3 ? "hot" : "normal";
 
+  // Compact version for mobile
+  if (compact) {
+    return (
+      <div className="glass-card rounded-xl p-3 glass-card-hover">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="p-1 rounded-lg bg-primary/10 border border-primary/20">
+            <TrendingUp className="h-3 w-3 text-primary" />
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            Progresso
+          </span>
+        </div>
+
+        {/* Streak Display */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "p-1.5 rounded-lg",
+              streakLevel === "legendary" && "bg-amber-500/20",
+              streakLevel === "hot" && "bg-orange-500/20",
+              streakLevel === "normal" && "bg-muted"
+            )}>
+              <Flame className={cn(
+                "h-3.5 w-3.5",
+                streakLevel === "legendary" && "text-amber-400",
+                streakLevel === "hot" && "text-orange-400",
+                streakLevel === "normal" && "text-muted-foreground"
+              )} />
+            </div>
+            <div>
+              <p className="text-lg font-black leading-none">{stats.streak}</p>
+              <p className="text-[9px] text-muted-foreground">dias</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-black leading-none text-primary">{stats.completionRate}%</p>
+            <p className="text-[9px] text-muted-foreground">taxa</p>
+          </div>
+        </div>
+
+        {/* Streak visual indicator */}
+        <div className="flex gap-0.5">
+          {[...Array(7)].map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                "h-1 flex-1 rounded-full",
+                i < stats.streak 
+                  ? streakLevel === "legendary" 
+                    ? "bg-amber-400" 
+                    : streakLevel === "hot" 
+                      ? "bg-orange-400" 
+                      : "bg-primary"
+                  : "bg-muted"
+              )}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Full version for desktop
   return (
-    <div className="glass-card rounded-2xl p-4 space-y-4">
+    <div className="glass-card rounded-2xl p-4 space-y-4 glass-card-hover">
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
           <TrendingUp className="h-4 w-4 text-primary" />

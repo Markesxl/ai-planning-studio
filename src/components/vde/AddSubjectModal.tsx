@@ -120,15 +120,17 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
+          size="sm"
           className={cn(
-            "w-full font-bold uppercase text-xs md:text-sm py-4 md:py-6 rounded-xl md:rounded-2xl",
+            "font-semibold text-xs rounded-lg md:rounded-xl",
             "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90",
-            "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
-            "transition-all duration-300 hover:scale-[1.02] micro-press"
+            "shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/25",
+            "transition-all duration-300 hover:scale-[1.02] micro-press",
+            "h-8 md:h-9 px-3 md:px-4"
           )}
         >
-          <Plus className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2" />
-          Adicionar Matéria
+          <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1" />
+          <span className="hidden sm:inline">Adicionar</span> Matéria
         </Button>
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-[500px] glass-card border-border/50 rounded-2xl md:rounded-3xl max-h-[90vh] overflow-y-auto">
@@ -183,7 +185,9 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={`Descreva o que você quer estudar, objetivos, prazo...
 
-Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.`}
+Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.
+
+💡 Se não especificar dias, a IA vai analisar o conteúdo e sugerir um cronograma ideal!`}
               className="glass-subtle border-border/50 rounded-xl min-h-[100px] resize-none focus:border-primary/50 focus:ring-primary/20 transition-all"
               disabled={isLoading}
             />
