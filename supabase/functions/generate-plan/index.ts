@@ -90,38 +90,49 @@ ${fileContextSection}
 DATA DE INÍCIO (HOJE): ${todayStr}
 
 INSTRUÇÕES CRÍTICAS PARA DISTRIBUIÇÃO DE DATAS:
-1. Analise o tempo disponível, objetivos e nível do usuário
-2. Divida o conteúdo em tarefas específicas e realizáveis
-3. Crie entre 10-25 tarefas (dependendo do prazo)
-4. **REGRA IMPORTANTE DE DISTRIBUIÇÃO**:
-   - Se o usuário pedir "dias consecutivos" ou "todo dia": coloque UMA tarefa POR DIA, em dias seguidos
-   - Se o usuário pedir "30 dias": distribua uniformemente ao longo de 30 dias
-   - Se o usuário pedir "intensivo": pode colocar 2-3 tarefas por dia
-   - NUNCA pule dias a menos que explicitamente pedido
-5. Exemplo para 7 dias consecutivos: dia 1, dia 2, dia 3, dia 4, dia 5, dia 6, dia 7
-6. Inclua tempo estimado para cada tarefa (ex: "30min", "1h", "2h")
-7. Ordene as tarefas de forma lógica e progressiva
 
-PADRÃO DE DATAS (use estas datas como referência para distribuição consecutiva):
-${exampleDates.map((d, i) => `Dia ${i + 1}: ${d}`).join(", ")}
+1. **SE O USUÁRIO ESPECIFICOU QUANTIDADE DE DIAS**: Siga exatamente o que ele pediu.
+
+2. **SE O USUÁRIO NÃO ESPECIFICOU DIAS**: Analise o conteúdo e determine automaticamente:
+   - Para tópicos simples (1-2 conceitos): 3-5 dias de estudo
+   - Para tópicos médios (3-5 conceitos): 7-14 dias de estudo
+   - Para tópicos complexos (6+ conceitos ou matéria completa): 14-30 dias de estudo
+   - Para preparação de provas/concursos: distribua proporcionalmente até a data da prova
+   - Considere 1-2 horas de estudo por dia como padrão
+
+3. **REGRAS OBRIGATÓRIAS DE DISTRIBUIÇÃO**:
+   - SEMPRE use dias CONSECUTIVOS (dia após dia, sem pular)
+   - Se pedir "7 dias": dias 1, 2, 3, 4, 5, 6, 7 (NUNCA 1, 3, 5, 7)
+   - Se pedir "intensivo": pode colocar 2-3 tarefas por dia
+   - Se pedir "espaçado" ou "revisão": pode alternar dias
+   - Por padrão, coloque UMA tarefa por dia em dias consecutivos
+
+4. **EXEMPLO DE DATAS CORRETAS** (para 7 dias a partir de ${todayStr}):
+${exampleDates.slice(0, 7).map((d, i) => `   Dia ${i + 1}: ${d}`).join("\n")}
+
+5. **ESTRUTURA DAS TAREFAS**:
+   - Crie entre 5-25 tarefas dependendo da complexidade
+   - Cada tarefa deve ter tempo estimado (ex: "30min", "1h", "2h")
+   - Ordene de forma lógica e progressiva (básico → avançado)
+   - Inclua revisões periódicas a cada 5-7 dias de conteúdo novo
 
 Responda APENAS com um array JSON válido, sem texto adicional, markdown ou explicações.
 
 FORMATO OBRIGATÓRIO:
 [
-  {"text": "Título curto da tarefa", "description": "Descrição detalhada do que estudar (tempo estimado)", "priority": "high", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"},
-  {"text": "Título curto", "description": "Descrição do conteúdo a estudar", "priority": "medium", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"}
+  {"text": "📚 Título curto da tarefa", "description": "Descrição detalhada do que estudar (tempo estimado: Xh)", "priority": "high", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"},
+  {"text": "📝 Título curto", "description": "Descrição do conteúdo a estudar (tempo estimado: Xmin)", "priority": "medium", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"}
 ]
 
 CAMPOS OBRIGATÓRIOS:
-- "text": Título curto da tarefa (máx 50 caracteres)
+- "text": Título curto da tarefa com emoji (máx 50 caracteres)
 - "description": Descrição detalhada do que será estudado com tempo estimado
 - "category": Sempre "${subject}"
 - "subject": Sempre "${topic || "Geral"}"
-- "priority": "high" para fundamentos, "medium" para prática, "low" para revisões
-- "date": Data no formato YYYY-MM-DD (use datas CONSECUTIVAS quando apropriado!)
+- "priority": "high" para fundamentos importantes, "medium" para prática, "low" para revisões
+- "date": Data no formato YYYY-MM-DD (OBRIGATORIAMENTE em dias consecutivos!)
 
-Use emojis no início do texto: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬`;
+Use emojis variados no início do texto: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬 📊 🧠 🎓 ✨`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

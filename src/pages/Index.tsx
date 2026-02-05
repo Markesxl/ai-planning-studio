@@ -1,18 +1,38 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bot, CalendarDays, Sparkles, Menu, X } from "lucide-react";
+import { Bot, CalendarDays, Sparkles, Menu, Plus, Timer } from "lucide-react";
 import { Sidebar } from "@/components/vde/Sidebar";
 import { AddSubjectModal } from "@/components/vde/AddSubjectModal";
 import { TaskNotesModal } from "@/components/vde/TaskNotesModal";
 import { TaskCard, Task } from "@/components/vde/TaskCard";
 import { FeedbackOverlay } from "@/components/vde/FeedbackOverlay";
-import { ThemeToggle } from "@/components/vde/ThemeToggle";
 import { StudyStreak } from "@/components/vde/StudyStreak";
+import { PomodoroTimer } from "@/components/vde/PomodoroTimer";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "vde_v4_data";
+
+// Color palette for categories - distinct vibrant colors
+const CATEGORY_COLORS = [
+  { border: "border-l-emerald-500", bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400" },
+  { border: "border-l-violet-500", bg: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400" },
+  { border: "border-l-amber-500", bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400" },
+  { border: "border-l-rose-500", bg: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400" },
+  { border: "border-l-cyan-500", bg: "bg-cyan-500/10", text: "text-cyan-600 dark:text-cyan-400" },
+  { border: "border-l-orange-500", bg: "bg-orange-500/10", text: "text-orange-600 dark:text-orange-400" },
+  { border: "border-l-pink-500", bg: "bg-pink-500/10", text: "text-pink-600 dark:text-pink-400" },
+  { border: "border-l-teal-500", bg: "bg-teal-500/10", text: "text-teal-600 dark:text-teal-400" },
+  { border: "border-l-indigo-500", bg: "bg-indigo-500/10", text: "text-indigo-600 dark:text-indigo-400" },
+  { border: "border-l-lime-500", bg: "bg-lime-500/10", text: "text-lime-600 dark:text-lime-400" },
+];
+
+export function getCategoryColor(category: string, allCategories: string[]) {
+  const index = allCategories.indexOf(category);
+  if (index === -1) return CATEGORY_COLORS[0];
+  return CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+}
 
 const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -26,6 +46,9 @@ const Index = () => {
     type: "loading" | "success" | "error" | "complete";
     message: string;
   }>({ show: false, type: "loading", message: "" });
+
+  // Get unique categories for color mapping
+  const uniqueCategories = [...new Set(tasks.map((t) => t.category || "Geral"))];
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -221,19 +244,19 @@ const Index = () => {
             if (isMobile) setSidebarOpen(false);
           }}
           onDeleteCategory={deleteCategory}
-          onPomodoroComplete={handlePomodoroComplete}
+          onClose={() => setSidebarOpen(false)}
         />
       </div>
 
       {/* Main Content */}
       <main className={cn(
-        "flex-1 flex flex-col gap-4 p-4 overflow-y-auto relative z-10",
-        "md:gap-6 md:p-8",
+        "flex-1 flex flex-col gap-3 p-3 overflow-y-auto relative z-10",
+        "md:gap-6 md:p-6 lg:p-8",
         "transition-all duration-300"
       )}>
         {/* Mobile Header */}
         {isMobile && (
-          <div className="flex items-center justify-between mb-2 animate-fade-in">
+          <div className="flex items-center justify-between animate-fade-in">
             <Button
               variant="ghost"
               size="icon"
@@ -242,89 +265,141 @@ const Index = () => {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <ThemeToggle />
-          </div>
-        )}
-
-        {/* Desktop Header with Theme Toggle */}
-        {!isMobile && (
-          <div className="flex justify-end mb-2">
-            <ThemeToggle />
-          </div>
-        )}
-
-        {/* Hero Card - AI Planner */}
-        <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-8 glass-card-hover relative overflow-hidden animate-slide-in-left">
-          {/* Decorative gradient */}
-          <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl" />
-          
-          <div className="relative">
-            <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
-              <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-primary/10 border border-primary/20">
-                <Bot className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                <Bot className="h-5 w-5 text-primary" />
               </div>
-              <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-primary/80">
-                Assistente Inteligente
-              </span>
+              <span className="font-bold text-lg">VDE AI</span>
             </div>
-            
-            <h1 className="text-2xl md:text-3xl font-black mb-4 md:mb-6 flex items-center gap-2 md:gap-3">
-              <Sparkles className="h-5 w-5 md:h-7 md:w-7 text-primary animate-pulse" />
-              Planejamento AI
-            </h1>
-            
-            <AddSubjectModal onTasksGenerated={handleTasksGenerated} />
+            <div className="w-10" /> {/* Spacer */}
           </div>
-        </div>
+        )}
 
-        {/* Study Streak - Mobile Only (Desktop shows in sidebar) */}
+        {/* Mobile: Slim cards - Modo Foco + Progresso side by side */}
         {isMobile && (
-          <div className="animate-slide-in-right" style={{ animationDelay: "0.1s" }}>
-            <StudyStreak tasks={tasks} />
+          <div className="grid grid-cols-2 gap-2 animate-slide-in-left">
+            {/* Slim Pomodoro */}
+            <div className="glass-card rounded-xl p-3 glass-card-hover">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1 rounded-lg bg-primary/10 border border-primary/20">
+                  <Timer className="h-3 w-3 text-primary" />
+                </div>
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Foco
+                </span>
+              </div>
+              <PomodoroTimer onComplete={handlePomodoroComplete} compact />
+            </div>
+
+            {/* Slim Progress */}
+            <StudyStreak tasks={tasks} compact />
           </div>
         )}
 
-        {/* Tasks Section */}
-        <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-6 flex-1 glass-card-hover animate-slide-in-left" style={{ animationDelay: "0.15s" }}>
-          <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-            <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-primary/10 border border-primary/20">
-              <CalendarDays className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base md:text-lg font-bold">
-                {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
-              </h2>
-              <p className="text-[10px] md:text-xs text-muted-foreground">
-                {filteredTasks.length} {filteredTasks.length === 1 ? "tarefa" : "tarefas"} programadas
-              </p>
-            </div>
-          </div>
-          
-          <div className="space-y-2 md:space-y-3">
-            {filteredTasks.length === 0 ? (
-              <div className="glass-subtle rounded-xl md:rounded-2xl p-8 md:p-12 text-center animate-scale-in">
-                <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                  <CalendarDays className="h-6 w-6 md:h-8 md:w-8 text-primary/50" />
+        {/* Desktop Layout: Main content grid */}
+        <div className={cn(
+          "flex flex-col gap-4",
+          "lg:grid lg:grid-cols-[1fr,320px] lg:gap-6"
+        )}>
+          {/* Left Column: AI Planner + Tasks */}
+          <div className="flex flex-col gap-4 lg:gap-6">
+            {/* Hero Card - AI Planner */}
+            <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-6 glass-card-hover relative overflow-hidden animate-slide-in-left">
+              {/* Decorative gradient */}
+              <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl" />
+              
+              <div className="relative">
+                <div className="flex items-center justify-between mb-3 md:mb-4">
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-primary/10 border border-primary/20">
+                      <Bot className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h1 className="text-lg md:text-xl font-black flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-primary animate-pulse" />
+                        Planejamento AI
+                      </h1>
+                      <p className="text-[10px] md:text-xs text-muted-foreground">
+                        Gere cronogramas inteligentes com IA
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Compact Add Button */}
+                  <AddSubjectModal onTasksGenerated={handleTasksGenerated} />
                 </div>
-                <p className="text-muted-foreground text-xs md:text-sm">
-                  {isToday 
-                    ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
-                    : "Nenhuma tarefa para esta data."}
-                </p>
               </div>
-            ) : (
-              filteredTasks.map((task, index) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  index={index}
-                  onToggle={toggleTask}
-                  onDelete={deleteTask}
-                  onClick={handleTaskClick}
-                />
-              ))
-            )}
+            </div>
+
+            {/* Tasks Section */}
+            <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-6 flex-1 glass-card-hover animate-slide-in-left" style={{ animationDelay: "0.1s" }}>
+              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+                <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-primary/10 border border-primary/20">
+                  <CalendarDays className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-base md:text-lg font-bold">
+                    {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
+                  </h2>
+                  <p className="text-[10px] md:text-xs text-muted-foreground">
+                    {filteredTasks.length} {filteredTasks.length === 1 ? "tarefa" : "tarefas"} programadas
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-2 md:space-y-3">
+                {filteredTasks.length === 0 ? (
+                  <div className="glass-subtle rounded-xl md:rounded-2xl p-6 md:p-10 text-center animate-scale-in">
+                    <div className="w-12 h-12 md:w-14 md:h-14 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+                      <CalendarDays className="h-6 w-6 md:h-7 md:w-7 text-primary/50" />
+                    </div>
+                    <p className="text-muted-foreground text-xs md:text-sm">
+                      {isToday 
+                        ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
+                        : "Nenhuma tarefa para esta data."}
+                    </p>
+                  </div>
+                ) : (
+                  filteredTasks.map((task, index) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      index={index}
+                      onToggle={toggleTask}
+                      onDelete={deleteTask}
+                      onClick={handleTaskClick}
+                      categoryColor={getCategoryColor(task.category || "Geral", uniqueCategories)}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Right Column: Modo Foco + Progresso (Desktop Only) */}
+          {!isMobile && (
+            <div className="hidden lg:flex flex-col gap-4 animate-slide-in-right">
+              {/* Modo Foco / Pomodoro */}
+              <div className="glass-card rounded-2xl p-5 glass-card-hover relative overflow-hidden">
+                <div className="absolute -top-8 -right-8 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
+                
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                      <Timer className="h-4 w-4 text-primary" />
+                    </div>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Modo Foco
+                    </span>
+                  </div>
+                  <PomodoroTimer onComplete={handlePomodoroComplete} />
+                </div>
+              </div>
+
+              {/* Progresso */}
+              <StudyStreak tasks={tasks} />
+            </div>
+          )}
         </div>
       </main>
     </div>

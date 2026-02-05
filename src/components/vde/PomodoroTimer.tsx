@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 interface PomodoroTimerProps {
   duration?: number;
   onComplete?: () => void;
+  compact?: boolean;
 }
 
-export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps) {
+export function PomodoroTimer({ duration = 25, onComplete, compact = false }: PomodoroTimerProps) {
   const [seconds, setSeconds] = useState(duration * 60);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -54,6 +55,70 @@ export function PomodoroTimer({ duration = 25, onComplete }: PomodoroTimerProps)
 
   const progress = ((duration * 60 - seconds) / (duration * 60)) * 100;
 
+  // Compact version for mobile
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        {/* Timer Display */}
+        <div className="relative">
+          {isRunning && (
+            <div className="absolute inset-0 blur-xl bg-primary/20 rounded-full animate-glow-pulse" />
+          )}
+          <div
+            className={cn(
+              "relative text-xl font-black tracking-wider transition-all duration-500",
+              isRunning ? "text-primary scale-105" : "text-foreground"
+            )}
+          >
+            {formatTime(seconds)}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-full h-1 bg-secondary/50 rounded-full overflow-hidden">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all duration-1000 ease-linear",
+              isRunning 
+                ? "bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] animate-shimmer" 
+                : "bg-primary"
+            )}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Controls */}
+        <div className="flex gap-1.5 w-full">
+          <Button
+            onClick={toggleTimer}
+            size="sm"
+            className={cn(
+              "flex-1 font-bold uppercase text-[10px] rounded-lg h-7 transition-all duration-300",
+              isRunning
+                ? "bg-destructive/90 hover:bg-destructive text-destructive-foreground"
+                : "bg-primary hover:bg-primary/90 text-primary-foreground"
+            )}
+          >
+            {isRunning ? (
+              <Square className="h-3 w-3" />
+            ) : (
+              <Play className="h-3 w-3" />
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetTimer}
+            className="h-7 w-7 rounded-lg border-border/50 p-0"
+          >
+            <RotateCcw className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Full version for desktop
   return (
     <div className="flex flex-col items-center gap-4 md:gap-5">
       {/* Timer Display */}

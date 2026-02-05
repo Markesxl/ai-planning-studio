@@ -16,12 +16,19 @@ export interface Task {
   notes?: string;
 }
 
+interface CategoryColor {
+  border: string;
+  bg: string;
+  text: string;
+}
+
 interface TaskCardProps {
   task: Task;
   index: number;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onClick?: (task: Task) => void;
+  categoryColor?: CategoryColor;
 }
 
 function formatDate(dateStr?: string): string {
@@ -31,27 +38,18 @@ function formatDate(dateStr?: string): string {
 }
 
 export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(
-  ({ task, index, onToggle, onDelete, onClick }, ref) => {
-    const priorityStyles = {
-      high: {
-        border: "border-l-destructive",
-        glow: "hover:shadow-[0_0_30px_hsl(4_70%_45%/0.15)]",
-        badge: "bg-destructive/10 text-destructive border-destructive/20",
-      },
-      medium: {
-        border: "border-l-amber-500",
-        glow: "hover:shadow-[0_0_30px_hsl(45_100%_50%/0.15)]",
-        badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-      },
-      low: {
-        border: "border-l-primary",
-        glow: "hover:shadow-[0_0_30px_hsl(145_63%_49%/0.15)]",
-        badge: "bg-primary/10 text-primary border-primary/20",
-      },
+  ({ task, index, onToggle, onDelete, onClick, categoryColor }, ref) => {
+    // Default colors based on priority (fallback if no category color)
+    const priorityGlows = {
+      high: "hover:shadow-[0_0_30px_hsl(4_70%_45%/0.15)]",
+      medium: "hover:shadow-[0_0_30px_hsl(45_100%_50%/0.15)]",
+      low: "hover:shadow-[0_0_30px_hsl(145_63%_49%/0.15)]",
     };
 
     const priority = task.priority || "low";
-    const styles = priorityStyles[priority];
+    const borderClass = categoryColor?.border || "border-l-primary";
+    const badgeBg = categoryColor?.bg || "bg-primary/10";
+    const badgeText = categoryColor?.text || "text-primary";
 
     const handleClick = (e: React.MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -71,8 +69,8 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(
           "transition-all duration-300 micro-press",
           "hover:bg-card/60 hover:scale-[1.01]",
           "active:scale-[0.99]",
-          styles.border,
-          styles.glow
+          borderClass,
+          priorityGlows[priority]
         )}
         style={{ animationDelay: `${index * 60}ms` }}
       >
@@ -96,8 +94,9 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(
             <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
               {task.category && (
                 <span className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold border",
-                  styles.badge
+                  "inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold border border-current/20",
+                  badgeBg,
+                  badgeText
                 )}>
                   <BookOpen className="h-2.5 w-2.5 md:h-3 md:w-3" />
                   {task.category}
