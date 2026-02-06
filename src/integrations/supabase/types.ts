@@ -14,7 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          study_minutes: number | null
+          tasks_completed: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          study_minutes?: number | null
+          tasks_completed?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          study_minutes?: number | null
+          tasks_completed?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          category: string | null
+          created_at: string
+          date: string | null
+          description: string | null
+          done: boolean
+          id: string
+          notes: string | null
+          priority: string | null
+          subject: string | null
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          done?: boolean
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          subject?: string | null
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          done?: boolean
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          subject?: string | null
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_progress: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_study_date: string | null
+          longest_streak: number
+          total_completed: number
+          updated_at: string
+          user_id: string
+          weekly_goal: number | null
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_study_date?: string | null
+          longest_streak?: number
+          total_completed?: number
+          updated_at?: string
+          user_id: string
+          weekly_goal?: number | null
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_study_date?: string | null
+          longest_streak?: number
+          total_completed?: number
+          updated_at?: string
+          user_id?: string
+          weekly_goal?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

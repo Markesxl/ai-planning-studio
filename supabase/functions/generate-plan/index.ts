@@ -5,6 +5,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface AnalysisResult {
+  dificuldade_estimada: number;
+  horas_totais: number;
+  dias_recomendados: number;
+  modulos: string[];
+  tasks: TaskItem[];
+}
+
+interface TaskItem {
+  text: string;
+  description: string;
+  priority: "high" | "medium" | "low";
+  date: string;
+  category: string;
+  subject: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -13,9 +30,9 @@ serve(async (req) => {
   try {
     const { subject, topic, prompt, fileContent } = await req.json();
 
-    if (!subject || !prompt) {
+    if (!subject) {
       return new Response(
-        JSON.stringify({ error: "Subject and prompt are required" }),
+        JSON.stringify({ error: "Subject is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -50,7 +67,7 @@ serve(async (req) => {
 
     // Calculate example dates for better distribution
     const exampleDates: string[] = [];
-    for (let i = 0; i < 30; i += 3) {
+    for (let i = 0; i < 30; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() + i);
       exampleDates.push(date.toISOString().split("T")[0]);
@@ -64,75 +81,86 @@ CONTEÚDO DO ARQUIVO ANEXADO:
 ${processedFileContent}
 """
 
-Você DEVE analisar o conteúdo do arquivo acima e criar tarefas de estudo baseadas nele. 
-O arquivo pode conter:
-- Cronograma de aulas ou provas
-- Lista de tópicos ou capítulos
-- Ementa de disciplina
-- Qualquer conteúdo educacional
-
-Extraia os tópicos principais e distribua-os como tarefas de estudo.
+Você DEVE analisar o conteúdo do arquivo acima e criar tarefas de estudo baseadas nele.
 `;
     }
 
     const topicInfo = topic ? `\nASSUNTO/TÓPICO: ${topic}` : "";
+    const userContext = prompt ? `\nCONTEXTO ADICIONAL DO USUÁRIO: ${prompt}` : "";
     
-    const systemPrompt = `Você é um assistente especializado em criar planejamentos de estudo personalizados e detalhados.
+    const systemPrompt = `Você é um especialista em pedagogia e planejamento de estudos com IA avançada.
 
-TAREFA: Crie um cronograma de estudos baseado nas informações do usuário.
+TAREFA: Analise o conteúdo de estudo e gere um cronograma inteligente.
 
 MATÉRIA/CURSO: ${subject}${topicInfo}
-
-INFORMAÇÕES DO USUÁRIO:
-${prompt}
+${userContext}
 ${fileContextSection}
 
 DATA DE INÍCIO (HOJE): ${todayStr}
 
-INSTRUÇÕES CRÍTICAS PARA DISTRIBUIÇÃO DE DATAS:
+## FASE 1: ANÁLISE INTERNA (faça antes de gerar tarefas)
 
-1. **SE O USUÁRIO ESPECIFICOU QUANTIDADE DE DIAS**: Siga exatamente o que ele pediu.
+1. **CLASSIFICAR COMPLEXIDADE** (1 a 5):
+   - 1: Introdutório (ex: "Introdução ao HTML", "Básico de Excel")
+   - 2: Básico-Intermediário (ex: "CSS Flexbox", "Fórmulas Excel")
+   - 3: Intermediário (ex: "JavaScript ES6", "Python OOP")
+   - 4: Avançado (ex: "React Hooks", "Machine Learning Básico")
+   - 5: Expert (ex: "Micro-serviços com Go", "Deep Learning", "Kubernetes")
 
-2. **SE O USUÁRIO NÃO ESPECIFICOU DIAS**: Analise o conteúdo e determine automaticamente:
-   - Para tópicos simples (1-2 conceitos): 3-5 dias de estudo
-   - Para tópicos médios (3-5 conceitos): 7-14 dias de estudo
-   - Para tópicos complexos (6+ conceitos ou matéria completa): 14-30 dias de estudo
-   - Para preparação de provas/concursos: distribua proporcionalmente até a data da prova
-   - Considere 1-2 horas de estudo por dia como padrão
+2. **ESTIMAR EXTENSÃO**:
+   - Identifique quantos sub-módulos/conceitos são necessários
+   - Estime horas totais de estudo (considere 1-2h por sessão)
+   - Calcule dias necessários baseado na complexidade
 
-3. **REGRAS OBRIGATÓRIAS DE DISTRIBUIÇÃO**:
-   - SEMPRE use dias CONSECUTIVOS (dia após dia, sem pular)
-   - Se pedir "7 dias": dias 1, 2, 3, 4, 5, 6, 7 (NUNCA 1, 3, 5, 7)
-   - Se pedir "intensivo": pode colocar 2-3 tarefas por dia
-   - Se pedir "espaçado" ou "revisão": pode alternar dias
-   - Por padrão, coloque UMA tarefa por dia em dias consecutivos
+3. **FÓRMULA DE DIAS**:
+   - Complexidade 1: 3-5 dias (5-10h total)
+   - Complexidade 2: 5-10 dias (10-20h total)
+   - Complexidade 3: 10-15 dias (20-30h total)
+   - Complexidade 4: 15-25 dias (30-50h total)
+   - Complexidade 5: 25-30 dias (50-80h total)
 
-4. **EXEMPLO DE DATAS CORRETAS** (para 7 dias a partir de ${todayStr}):
-${exampleDates.slice(0, 7).map((d, i) => `   Dia ${i + 1}: ${d}`).join("\n")}
+## FASE 2: GERAÇÃO DO CRONOGRAMA
 
-5. **ESTRUTURA DAS TAREFAS**:
-   - Crie entre 5-25 tarefas dependendo da complexidade
-   - Cada tarefa deve ter tempo estimado (ex: "30min", "1h", "2h")
-   - Ordene de forma lógica e progressiva (básico → avançado)
-   - Inclua revisões periódicas a cada 5-7 dias de conteúdo novo
+REGRAS OBRIGATÓRIAS:
+1. Use SEMPRE dias CONSECUTIVOS (${exampleDates.slice(0, 7).join(", ")}, ...)
+2. NUNCA pule dias no cronograma
+3. Uma tarefa principal por dia
+4. Inclua revisões a cada 5-7 dias
+5. Comece pelo básico, avance progressivamente
 
-Responda APENAS com um array JSON válido, sem texto adicional, markdown ou explicações.
+EXEMPLO DE DATAS CORRETAS para 7 dias:
+${exampleDates.slice(0, 7).map((d, i) => `Dia ${i + 1}: ${d}`).join("\n")}
 
-FORMATO OBRIGATÓRIO:
-[
-  {"text": "📚 Título curto da tarefa", "description": "Descrição detalhada do que estudar (tempo estimado: Xh)", "priority": "high", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"},
-  {"text": "📝 Título curto", "description": "Descrição do conteúdo a estudar (tempo estimado: Xmin)", "priority": "medium", "date": "YYYY-MM-DD", "category": "${subject}", "subject": "${topic || "Geral"}"}
-]
+## FORMATO DE RESPOSTA OBRIGATÓRIO
 
-CAMPOS OBRIGATÓRIOS:
-- "text": Título curto da tarefa com emoji (máx 50 caracteres)
-- "description": Descrição detalhada do que será estudado com tempo estimado
-- "category": Sempre "${subject}"
-- "subject": Sempre "${topic || "Geral"}"
-- "priority": "high" para fundamentos importantes, "medium" para prática, "low" para revisões
-- "date": Data no formato YYYY-MM-DD (OBRIGATORIAMENTE em dias consecutivos!)
+Responda APENAS com um JSON válido, sem texto adicional ou markdown:
 
-Use emojis variados no início do texto: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬 📊 🧠 🎓 ✨`;
+{
+  "dificuldade_estimada": 3,
+  "horas_totais": 25,
+  "dias_recomendados": 12,
+  "modulos": ["Módulo 1: Fundamentos", "Módulo 2: Prática", "Módulo 3: Avançado"],
+  "tasks": [
+    {
+      "text": "📚 Título curto da tarefa",
+      "description": "Descrição detalhada do que estudar (tempo estimado: 1h30min)",
+      "priority": "high",
+      "date": "${todayStr}",
+      "category": "${subject}",
+      "subject": "${topic || "Geral"}"
+    }
+  ]
+}
+
+CAMPOS DAS TAREFAS:
+- "text": Título curto com emoji (máx 50 chars). Emojis: 📚 📝 🧪 📖 💡 🎯 ✍️ 🔬 📊 🧠 🎓 ✨ 🚀 💻 📱
+- "description": Descrição detalhada com tempo estimado
+- "priority": "high" (fundamentos), "medium" (prática), "low" (revisão)
+- "date": YYYY-MM-DD em dias CONSECUTIVOS
+- "category": "${subject}"
+- "subject": "${topic || "Geral"}"
+
+Gere entre 5 e 30 tarefas dependendo da complexidade analisada.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -144,7 +172,7 @@ Use emojis variados no início do texto: 📚 📝 🧪 📖 💡 🎯 ✍️ �
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Crie um planejamento de estudos detalhado para: ${subject}. ${prompt}${fileContent ? " Baseie-se também no conteúdo do arquivo anexado." : ""}` }
+          { role: "user", content: `Analise e crie um planejamento inteligente para: ${subject}${topic ? ` - ${topic}` : ""}` }
         ],
         temperature: 0.7,
       }),
@@ -174,38 +202,56 @@ Use emojis variados no início do texto: 📚 📝 🧪 📖 💡 🎯 ✍️ �
     console.log("AI Response:", aiResponse.substring(0, 500));
 
     // Parse JSON from AI response
-    let tasks;
+    let result: AnalysisResult;
     try {
       // Remove markdown code blocks if present
       let jsonText = aiResponse.trim();
       jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       
-      tasks = JSON.parse(jsonText);
+      result = JSON.parse(jsonText);
       
-      if (!Array.isArray(tasks)) {
-        throw new Error("Response is not an array");
+      if (!result.tasks || !Array.isArray(result.tasks)) {
+        throw new Error("Response missing tasks array");
       }
 
-      // Validate and fix dates
-      tasks = tasks.map((task: any, index: number) => {
-        // If date is missing or invalid, calculate a distributed date
-        if (!task.date || !/^\d{4}-\d{2}-\d{2}$/.test(task.date)) {
-          const daysToAdd = Math.floor(index * 2); // Spread tasks every 2 days
-          const newDate = new Date(today);
-          newDate.setDate(newDate.getDate() + daysToAdd);
-          task.date = newDate.toISOString().split("T")[0];
-        }
-        return task;
+      // Validate and fix dates to ensure consecutive
+      result.tasks = result.tasks.map((task: TaskItem, index: number) => {
+        // Ensure consecutive dates
+        const newDate = new Date(today);
+        newDate.setDate(newDate.getDate() + index);
+        
+        return {
+          ...task,
+          date: newDate.toISOString().split("T")[0],
+          category: task.category || subject,
+          subject: task.subject || topic || "Geral",
+          priority: task.priority || "medium"
+        };
       });
 
-      console.log("Parsed tasks with dates:", tasks.map((t: any) => ({ text: t.text.substring(0, 30), date: t.date })));
+      console.log("Parsed analysis:", {
+        dificuldade: result.dificuldade_estimada,
+        horas: result.horas_totais,
+        dias: result.dias_recomendados,
+        modulos: result.modulos?.length,
+        tasks: result.tasks.length
+      });
+
     } catch (parseError) {
       console.error("Failed to parse AI response:", aiResponse);
       throw new Error("Falha ao processar resposta da IA");
     }
 
     return new Response(
-      JSON.stringify({ tasks }),
+      JSON.stringify({
+        analysis: {
+          dificuldade_estimada: result.dificuldade_estimada,
+          horas_totais: result.horas_totais,
+          dias_recomendados: result.dias_recomendados,
+          modulos: result.modulos
+        },
+        tasks: result.tasks
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
