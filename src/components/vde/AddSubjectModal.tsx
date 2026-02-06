@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, GraduationCap, BookOpen, Lightbulb, Loader2, Sparkles, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +17,14 @@ import { toast } from "@/hooks/use-toast";
 import { DocumentUploader } from "./DocumentUploader";
 
 interface AddSubjectModalProps {
-  onTasksGenerated: (tasks: { text: string; priority: string; date?: string; category?: string; subject?: string; description?: string }[]) => void;
+  onTasksGenerated: (
+    tasks: { text: string; priority: string; date?: string; category?: string; subject?: string; description?: string }[],
+    analysis?: { dificuldade_estimada: number; horas_totais: number }
+  ) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
-export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
+export function AddSubjectModal({ onTasksGenerated, onLoadingChange }: AddSubjectModalProps) {
   const [open, setOpen] = useState(false);
   const [course, setCourse] = useState("");
   const [subject, setSubject] = useState("");
@@ -53,25 +58,15 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
       return;
     }
 
-    if (!prompt.trim() && !fileContent) {
-      toast({
-        title: "Campo obrigatório",
-        description: "Por favor, descreva o que você quer estudar ou anexe um arquivo!",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
+    onLoadingChange?.(true);
 
     try {
-      const fullPrompt = `Matéria: ${course}\nAssunto: ${subject}\n\nDetalhes: ${prompt || `Baseado no arquivo: ${fileName}`}`;
-      
       const { data, error } = await supabase.functions.invoke("generate-plan", {
         body: { 
           subject: course,
           topic: subject,
-          prompt: fullPrompt,
+          prompt: prompt || undefined,
           fileContent: fileContent || undefined 
         },
       });
@@ -87,7 +82,7 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
           subject: subject,
         }));
         
-        onTasksGenerated(tasksWithSubject);
+        onTasksGenerated(tasksWithSubject, data.analysis);
         
         setCourse("");
         setSubject("");
@@ -97,9 +92,13 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
         setShowFileUpload(false);
         setOpen(false);
         
+        const analysisInfo = data.analysis 
+          ? ` (Dificuldade: ${data.analysis.dificuldade_estimada}/5, ~${data.analysis.horas_totais}h)`
+          : "";
+        
         toast({
           title: "Sucesso! 🎉",
-          description: `${data.tasks.length} tarefas geradas para ${course} - ${subject}`,
+          description: `${data.tasks.length} tarefas geradas para ${course} - ${subject}${analysisInfo}`,
         });
       } else {
         throw new Error("Resposta inválida da IA");
@@ -113,39 +112,57 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
       });
     } finally {
       setIsLoading(false);
+      onLoadingChange?.(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button 
-          size="sm"
-          className={cn(
-            "font-semibold text-xs rounded-lg md:rounded-xl",
-            "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90",
-            "shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/25",
-            "transition-all duration-300 hover:scale-[1.02] micro-press",
-            "h-8 md:h-9 px-3 md:px-4"
-          )}
-        >
-          <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1" />
-          <span className="hidden sm:inline">Adicionar</span> Matéria
-        </Button>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button 
+            size="sm"
+            className={cn(
+              "font-semibold text-xs rounded-lg md:rounded-xl",
+              "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90",
+              "shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/25",
+              "transition-all duration-300",
+              "h-8 md:h-9 px-3 md:px-4"
+            )}
+          >
+            <Plus className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1" />
+            <span className="hidden sm:inline">Adicionar</span> Matéria
+          </Button>
+        </motion.div>
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-[500px] glass-card border-border/50 rounded-2xl md:rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+            <motion.div 
+              className="p-2 rounded-xl bg-primary/10 border border-primary/20"
+              initial={{ rotate: -10 }}
+              animate={{ rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200 }}
+            >
               <Sparkles className="h-5 w-5 text-primary" />
-            </div>
+            </motion.div>
             Adicionar Matéria com IA
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-5 mt-4">
+        <motion.div 
+          className="space-y-5 mt-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           {/* Course Input */}
-          <div className="space-y-2">
+          <motion.div 
+            className="space-y-2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
               <GraduationCap className="h-4 w-4 text-primary/70" />
               Matéria/Curso
@@ -157,10 +174,15 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
               className="glass-subtle border-border/50 rounded-xl h-11 focus:border-primary/50 focus:ring-primary/20 transition-all"
               disabled={isLoading}
             />
-          </div>
+          </motion.div>
 
           {/* Subject/Topic Input */}
-          <div className="space-y-2">
+          <motion.div 
+            className="space-y-2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+          >
             <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
               <BookOpen className="h-4 w-4 text-primary/70" />
               Assunto
@@ -172,29 +194,37 @@ export function AddSubjectModal({ onTasksGenerated }: AddSubjectModalProps) {
               className="glass-subtle border-border/50 rounded-xl h-11 focus:border-primary/50 focus:ring-primary/20 transition-all"
               disabled={isLoading}
             />
-          </div>
+          </motion.div>
 
           {/* Prompt Textarea */}
-          <div className="space-y-2">
+          <motion.div 
+            className="space-y-2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
               <Lightbulb className="h-4 w-4 text-primary/70" />
-              Detalhes do Estudo
+              Detalhes do Estudo (opcional)
             </label>
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={`Descreva o que você quer estudar, objetivos, prazo...
+              placeholder={`Descreva detalhes extras, prazos, objetivos...
 
-Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.
-
-💡 Se não especificar dias, a IA vai analisar o conteúdo e sugerir um cronograma ideal!`}
-              className="glass-subtle border-border/50 rounded-xl min-h-[100px] resize-none focus:border-primary/50 focus:ring-primary/20 transition-all"
+💡 A IA vai analisar automaticamente a complexidade e criar um cronograma ideal!`}
+              className="glass-subtle border-border/50 rounded-xl min-h-[80px] resize-none focus:border-primary/50 focus:ring-primary/20 transition-all"
               disabled={isLoading}
             />
-          </div>
+          </motion.div>
 
           {/* File Upload Toggle */}
-          <div className="space-y-2">
+          <motion.div 
+            className="space-y-2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.25 }}
+          >
             <Button
               type="button"
               variant="outline"
@@ -211,38 +241,53 @@ Ex: Preciso dominar derivadas em 2 semanas, tenho 1 hora por dia.
               {fileContent ? `📎 ${fileName}` : "Anexar arquivo (ementa, cronograma...)"}
             </Button>
 
-            {showFileUpload && (
-              <DocumentUploader
-                onFileContent={handleFileContent}
-                isLoading={isLoading}
-              />
-            )}
-          </div>
+            <AnimatePresence>
+              {showFileUpload && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <DocumentUploader
+                    onFileContent={handleFileContent}
+                    isLoading={isLoading}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
 
           {/* Generate Button */}
-          <Button
-            onClick={handleGenerate}
-            disabled={isLoading}
-            className={cn(
-              "w-full font-bold uppercase text-sm py-6 rounded-2xl transition-all duration-300",
-              isLoading
-                ? "bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] animate-shimmer"
-                : "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90 shadow-lg shadow-primary/25"
-            )}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Gerando com IA...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5 mr-2" />
-                Gerar Planejamento
-              </>
-            )}
-          </Button>
-        </div>
+            <Button
+              onClick={handleGenerate}
+              disabled={isLoading}
+              className={cn(
+                "w-full font-bold uppercase text-sm py-6 rounded-2xl transition-all duration-300",
+                isLoading
+                  ? "bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] animate-shimmer"
+                  : "bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90 shadow-lg shadow-primary/25"
+              )}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Analisando com IA...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Gerar Planejamento Inteligente
+                </>
+              )}
+            </Button>
+          </motion.div>
+        </motion.div>
       </DialogContent>
     </Dialog>
   );

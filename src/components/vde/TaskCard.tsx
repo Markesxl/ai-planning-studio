@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { motion } from "framer-motion";
 import { Trash2, CalendarDays, BookOpen } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -60,31 +61,33 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(
     };
 
     return (
-      <div
+      <motion.div
         ref={ref}
         onClick={handleClick}
         className={cn(
           "group glass-subtle rounded-xl md:rounded-2xl p-3 md:p-4 flex items-start gap-3 md:gap-4",
-          "border-l-4 cursor-pointer animate-card-entrance",
-          "transition-all duration-300 micro-press",
-          "hover:bg-card/60 hover:scale-[1.01]",
-          "active:scale-[0.99]",
+          "border-l-4 cursor-pointer",
+          "transition-all duration-300",
+          "hover:bg-card/60",
           borderClass,
           priorityGlows[priority]
         )}
-        style={{ animationDelay: `${index * 60}ms` }}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
       >
         {/* Checkbox */}
         <div className="pt-0.5">
-          <Checkbox
-            checked={task.done}
-            onCheckedChange={() => onToggle(task.id)}
-            className={cn(
-              "h-4 w-4 md:h-5 md:w-5 rounded-md md:rounded-lg border-2 transition-all duration-300",
-              "data-[state=checked]:bg-primary data-[state=checked]:border-primary",
-              "hover:border-primary/60 focus-ring-animated"
-            )}
-          />
+          <motion.div whileTap={{ scale: 0.9 }}>
+            <Checkbox
+              checked={task.done}
+              onCheckedChange={() => onToggle(task.id)}
+              className={cn(
+                "h-4 w-4 md:h-5 md:w-5 rounded-md md:rounded-lg border-2 transition-all duration-300",
+                "data-[state=checked]:bg-primary data-[state=checked]:border-primary",
+                "hover:border-primary/60 focus-ring-animated"
+              )}
+            />
+          </motion.div>
         </div>
 
         {/* Content */}
@@ -93,14 +96,19 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(
           {(task.category || task.subject) && (
             <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
               {task.category && (
-                <span className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold border border-current/20",
-                  badgeBg,
-                  badgeText
-                )}>
+                <motion.span 
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-semibold border border-current/20",
+                    badgeBg,
+                    badgeText
+                  )}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.02 }}
+                >
                   <BookOpen className="h-2.5 w-2.5 md:h-3 md:w-3" />
                   {task.category}
-                </span>
+                </motion.span>
               )}
               {task.subject && (
                 <span className="px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-medium bg-secondary/50 text-muted-foreground border border-border/50">
@@ -130,22 +138,25 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(
         </div>
 
         {/* Delete Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => onDelete(task.id)}
-          className={cn(
-            "opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100",
-            "transition-all duration-200 micro-bounce",
-            "text-destructive/70 hover:text-destructive hover:bg-destructive/10",
-            "rounded-lg md:rounded-xl h-7 w-7 md:h-8 md:w-8",
-            // Always visible on mobile for touch
-            "touch-device:opacity-100"
-          )}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          whileHover={{ opacity: 1, scale: 1 }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity"
         >
-          <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
-        </Button>
-      </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(task.id)}
+            className={cn(
+              "transition-all duration-200",
+              "text-destructive/70 hover:text-destructive hover:bg-destructive/10",
+              "rounded-lg md:rounded-xl h-7 w-7 md:h-8 md:w-8"
+            )}
+          >
+            <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+          </Button>
+        </motion.div>
+      </motion.div>
     );
   }
 );

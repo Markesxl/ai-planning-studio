@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Bot, CalendarDays, Sparkles, Menu, Plus, Timer } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bot, CalendarDays, Menu, Timer, User, LogOut } from "lucide-react";
 import { Sidebar } from "@/components/vde/Sidebar";
 import { AddSubjectModal } from "@/components/vde/AddSubjectModal";
 import { TaskNotesModal } from "@/components/vde/TaskNotesModal";
@@ -7,12 +8,17 @@ import { TaskCard, Task } from "@/components/vde/TaskCard";
 import { FeedbackOverlay } from "@/components/vde/FeedbackOverlay";
 import { StudyStreak } from "@/components/vde/StudyStreak";
 import { PomodoroTimer } from "@/components/vde/PomodoroTimer";
+import { EmptyState } from "@/components/vde/EmptyState";
+import { LoadingShimmer } from "@/components/vde/LoadingShimmer";
+import { MotionContainer, MotionItem } from "@/components/vde/MotionCard";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { useAuth } from "@/hooks/use-auth";
+import { useTasks } from "@/hooks/use-tasks";
+import { useProgress } from "@/hooks/use-progress";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const STORAGE_KEY = "vde_v4_data";
 
 // Color palette for categories - distinct vibrant colors
 const CATEGORY_COLORS = [
@@ -35,12 +41,19 @@ export function getCategoryColor(category: string, allCategories: string[]) {
 }
 
 const Index = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { tasks, loading: tasksLoading, addTasks, toggleTask, deleteTask, deleteCategory, updateTaskNotes } = useTasks();
+  const { progress } = useProgress(tasks);
+  
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  
   const [feedback, setFeedback] = useState<{
     show: boolean;
     type: "loading" | "success" | "error" | "complete";
@@ -50,29 +63,6 @@ const Index = () => {
   // Get unique categories for color mapping
   const uniqueCategories = [...new Set(tasks.map((t) => t.category || "Geral"))];
 
-  // Load tasks from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setTasks(parsed);
-        } else if (parsed.tasks) {
-          setTasks(parsed.tasks);
-        } else if (parsed.today || parsed.weekly) {
-          setTasks([...(parsed.today || []), ...(parsed.weekly || [])]);
-        }
-      } catch {
-        console.error("Failed to parse saved tasks");
-      }
-    }
-
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
   // Close sidebar on mobile when clicking outside
   useEffect(() => {
     if (!isMobile) {
@@ -80,15 +70,9 @@ const Index = () => {
     }
   }, [isMobile]);
 
-  const saveTasks = useCallback((newTasks: Task[]) => {
-    setTasks(newTasks);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newTasks));
-  }, []);
-
   const handleTasksGenerated = useCallback(
-    (aiTasks: { text: string; priority: string; date?: string; category?: string; subject?: string; description?: string }[]) => {
-      const newTasks: Task[] = aiTasks.map((t, i) => ({
-        id: `${Date.now()}-${i}`,
+    async (aiTasks: { text: string; priority: string; date?: string; category?: string; subject?: string; description?: string }[], analysis?: { dificuldade_estimada: number; horas_totais: number }) => {
+      const newTasks = aiTasks.map((t) => ({
         text: t.text,
         done: false,
         priority: (t.priority as "high" | "medium" | "low") || "medium",
@@ -98,31 +82,40 @@ const Index = () => {
         description: t.description || t.text,
       }));
 
-      saveTasks([...tasks, ...newTasks]);
+      try {
+        await addTasks(newTasks);
 
-      setFeedback({
-        show: true,
-        type: "success",
-        message: `✅ ${newTasks.length} tarefas criadas!`,
-      });
+        let message = `✅ ${newTasks.length} tarefas criadas!`;
+        if (analysis) {
+          message += ` (Dificuldade: ${analysis.dificuldade_estimada}/5, ~${analysis.horas_totais}h)`;
+        }
 
-      // Close sidebar on mobile after generating tasks
-      if (isMobile) {
-        setSidebarOpen(false);
+        setFeedback({
+          show: true,
+          type: "success",
+          message,
+        });
+
+        // Close sidebar on mobile after generating tasks
+        if (isMobile) {
+          setSidebarOpen(false);
+        }
+      } catch (error) {
+        toast({
+          title: "Erro ao salvar tarefas",
+          description: "Tente novamente.",
+          variant: "destructive",
+        });
       }
     },
-    [tasks, saveTasks, isMobile]
+    [addTasks, isMobile]
   );
 
-  const toggleTask = useCallback(
-    (id: string) => {
-      const updatedTasks = tasks.map((t) =>
-        t.id === id ? { ...t, done: !t.done } : t
-      );
-      saveTasks(updatedTasks);
-
-      const task = updatedTasks.find((t) => t.id === id);
-      if (task?.done) {
+  const handleToggleTask = useCallback(
+    async (id: string) => {
+      await toggleTask(id);
+      const task = tasks.find((t) => t.id === id);
+      if (task && !task.done) {
         setFeedback({
           show: true,
           type: "success",
@@ -130,31 +123,29 @@ const Index = () => {
         });
       }
     },
-    [tasks, saveTasks]
+    [tasks, toggleTask]
   );
 
-  const deleteTask = useCallback(
-    (id: string) => {
-      const updatedTasks = tasks.filter((t) => t.id !== id);
-      saveTasks(updatedTasks);
+  const handleDeleteTask = useCallback(
+    async (id: string) => {
+      await deleteTask(id);
       toast({
         title: "Tarefa removida",
         description: "A tarefa foi excluída com sucesso.",
       });
     },
-    [tasks, saveTasks]
+    [deleteTask]
   );
 
-  const deleteCategory = useCallback(
-    (category: string) => {
-      const updatedTasks = tasks.filter((t) => (t.category || "Sem categoria") !== category);
-      saveTasks(updatedTasks);
+  const handleDeleteCategory = useCallback(
+    async (category: string) => {
+      await deleteCategory(category);
       toast({
         title: "Matéria removida",
         description: `Todas as tarefas de "${category}" foram excluídas.`,
       });
     },
-    [tasks, saveTasks]
+    [deleteCategory]
   );
 
   const handleTaskClick = useCallback((task: Task) => {
@@ -163,17 +154,14 @@ const Index = () => {
   }, []);
 
   const handleSaveNotes = useCallback(
-    (taskId: string, notes: string) => {
-      const updatedTasks = tasks.map((t) =>
-        t.id === taskId ? { ...t, notes } : t
-      );
-      saveTasks(updatedTasks);
+    async (taskId: string, notes: string) => {
+      await updateTaskNotes(taskId, notes);
       toast({
         title: "Anotações salvas",
         description: "Suas anotações foram salvas com sucesso.",
       });
     },
-    [tasks, saveTasks]
+    [updateTaskNotes]
   );
 
   const handlePomodoroComplete = useCallback(() => {
@@ -198,12 +186,34 @@ const Index = () => {
     });
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <LoadingShimmer message="Carregando..." />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-background overflow-hidden relative">
       {/* Ambient background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px] animate-float" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/3 rounded-full blur-[150px] animate-float" style={{ animationDelay: "-3s" }} />
+        <motion.div 
+          className="absolute top-[-20%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]"
+          animate={{ 
+            y: [0, -20, 0],
+            x: [0, 10, 0],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div 
+          className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/3 rounded-full blur-[150px]"
+          animate={{ 
+            y: [0, 20, 0],
+            x: [0, -10, 0],
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        />
       </div>
 
       {/* Feedback Overlay */}
@@ -214,6 +224,9 @@ const Index = () => {
         onHide={() => setFeedback((prev) => ({ ...prev, show: false }))}
       />
 
+      {/* Auth Modal */}
+      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+
       {/* Task Notes Modal */}
       <TaskNotesModal
         task={selectedTask}
@@ -223,19 +236,29 @@ const Index = () => {
       />
 
       {/* Mobile Sidebar Overlay */}
-      {isMobile && sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 animate-fade-in"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {isMobile && sidebarOpen && (
+          <motion.div 
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Sidebar */}
-      <div className={cn(
-        "transition-transform duration-300 ease-out z-50",
-        isMobile && "fixed inset-y-0 left-0",
-        isMobile && !sidebarOpen && "-translate-x-full"
-      )}>
+      <motion.div 
+        className={cn(
+          "transition-transform duration-300 ease-out z-50",
+          isMobile && "fixed inset-y-0 left-0",
+          isMobile && !sidebarOpen && "-translate-x-full"
+        )}
+        initial={isMobile ? { x: "-100%" } : false}
+        animate={isMobile ? { x: sidebarOpen ? 0 : "-100%" } : {}}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      >
         <Sidebar
           tasks={tasks}
           selectedDate={selectedDate}
@@ -243,10 +266,10 @@ const Index = () => {
             setSelectedDate(date);
             if (isMobile) setSidebarOpen(false);
           }}
-          onDeleteCategory={deleteCategory}
+          onDeleteCategory={handleDeleteCategory}
           onClose={() => setSidebarOpen(false)}
         />
-      </div>
+      </motion.div>
 
       {/* Main Content */}
       <main className={cn(
@@ -256,7 +279,12 @@ const Index = () => {
       )}>
         {/* Mobile Header */}
         {isMobile && (
-          <div className="flex items-center justify-between animate-fade-in">
+          <motion.div 
+            className="flex items-center justify-between"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
             <Button
               variant="ghost"
               size="icon"
@@ -271,119 +299,226 @@ const Index = () => {
               </div>
               <span className="font-bold text-lg">VDE AI</span>
             </div>
-            <div className="w-10" /> {/* Spacer */}
-          </div>
+            {user ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => signOut()}
+                className="h-10 w-10 rounded-xl glass-subtle"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setAuthModalOpen(true)}
+                className="h-10 w-10 rounded-xl glass-subtle"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+            )}
+          </motion.div>
         )}
 
         {/* Mobile: Slim cards - Modo Foco + Progresso side by side */}
         {isMobile && (
-          <div className="grid grid-cols-2 gap-2 animate-slide-in-left">
+          <MotionContainer className="grid grid-cols-2 gap-2" staggerDelay={0.1}>
             {/* Slim Pomodoro */}
-            <div className="glass-card rounded-xl p-3 glass-card-hover">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-1 rounded-lg bg-primary/10 border border-primary/20">
-                  <Timer className="h-3 w-3 text-primary" />
+            <MotionItem>
+              <motion.div 
+                className="glass-card rounded-xl p-3 glass-card-hover"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1 rounded-lg bg-primary/10 border border-primary/20">
+                    <Timer className="h-3 w-3 text-primary" />
+                  </div>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Foco
+                  </span>
                 </div>
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Foco
-                </span>
-              </div>
-              <PomodoroTimer onComplete={handlePomodoroComplete} compact />
-            </div>
+                <PomodoroTimer onComplete={handlePomodoroComplete} compact />
+              </motion.div>
+            </MotionItem>
 
             {/* Slim Progress */}
-            <StudyStreak tasks={tasks} compact />
-          </div>
+            <MotionItem>
+              <StudyStreak tasks={tasks} progress={progress} compact />
+            </MotionItem>
+          </MotionContainer>
         )}
 
-        {/* Desktop Layout: Main content grid */}
-        <div className={cn(
-          "flex flex-col gap-4",
-          "lg:grid lg:grid-cols-[1fr,320px] lg:gap-6"
-        )}>
-          {/* Left Column: AI Planner + Tasks */}
-          <div className="flex flex-col gap-4 lg:gap-6">
-            {/* Hero Card - AI Planner */}
-            <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-6 glass-card-hover relative overflow-hidden animate-slide-in-left">
-              {/* Decorative gradient */}
-              <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl" />
-              
-              <div className="relative">
-                <div className="flex items-center justify-between mb-3 md:mb-4">
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-primary/10 border border-primary/20">
-                      <Bot className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h1 className="text-lg md:text-xl font-black flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-primary animate-pulse" />
-                        Planejamento AI
-                      </h1>
-                      <p className="text-[10px] md:text-xs text-muted-foreground">
-                        Gere cronogramas inteligentes com IA
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Compact Add Button */}
-                  <AddSubjectModal onTasksGenerated={handleTasksGenerated} />
-                </div>
-              </div>
-            </div>
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-3 md:gap-6 flex-1">
+          {/* Left Column: Planning */}
+          <MotionContainer className="flex flex-col gap-3 md:gap-6" staggerDelay={0.15}>
+            {/* Planning Card */}
+            <MotionItem>
+              <motion.div 
+                className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-6 glass-card-hover relative overflow-hidden"
+                whileHover={{ scale: 1.005 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Subtle gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
 
-            {/* Tasks Section */}
-            <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-6 flex-1 glass-card-hover animate-slide-in-left" style={{ animationDelay: "0.1s" }}>
-              <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-primary/10 border border-primary/20">
-                  <CalendarDays className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-base md:text-lg font-bold">
-                    {isToday ? "Tarefas de Hoje" : formatDisplayDate(selectedDate)}
-                  </h2>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">
-                    {filteredTasks.length} {filteredTasks.length === 1 ? "tarefa" : "tarefas"} programadas
-                  </p>
-                </div>
-              </div>
-              
-              <div className="space-y-2 md:space-y-3">
-                {filteredTasks.length === 0 ? (
-                  <div className="glass-subtle rounded-xl md:rounded-2xl p-6 md:p-10 text-center animate-scale-in">
-                    <div className="w-12 h-12 md:w-14 md:h-14 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
-                      <CalendarDays className="h-6 w-6 md:h-7 md:w-7 text-primary/50" />
+                <div className="relative z-10">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-4 md:mb-6">
+                    <div className="flex items-center gap-3">
+                      <motion.div 
+                        className="p-2 md:p-2.5 rounded-xl md:rounded-2xl bg-primary/10 border border-primary/20"
+                        whileHover={{ rotate: [0, -10, 10, 0] }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <CalendarDays className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                      </motion.div>
+                      <div>
+                        <h2 className="text-lg md:text-xl font-bold">
+                          {isToday ? "Planejamento de Hoje" : "Tarefas do Dia"}
+                        </h2>
+                        <p className="text-xs md:text-sm text-muted-foreground capitalize">
+                          {formatDisplayDate(selectedDate)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-muted-foreground text-xs md:text-sm">
-                      {isToday 
-                        ? "Nenhuma tarefa para hoje. Use a IA para gerar!" 
-                        : "Nenhuma tarefa para esta data."}
-                    </p>
-                  </div>
-                ) : (
-                  filteredTasks.map((task, index) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      index={index}
-                      onToggle={toggleTask}
-                      onDelete={deleteTask}
-                      onClick={handleTaskClick}
-                      categoryColor={getCategoryColor(task.category || "Geral", uniqueCategories)}
+                    <AddSubjectModal 
+                      onTasksGenerated={handleTasksGenerated}
+                      onLoadingChange={setIsGenerating}
                     />
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
+                  </div>
 
-          {/* Right Column: Modo Foco + Progresso (Desktop Only) */}
+                  {/* Loading State */}
+                  <AnimatePresence mode="wait">
+                    {isGenerating ? (
+                      <motion.div
+                        key="loading"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                      >
+                        <LoadingShimmer />
+                      </motion.div>
+                    ) : tasksLoading ? (
+                      <motion.div
+                        key="tasks-loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex items-center justify-center py-12"
+                      >
+                        <LoadingShimmer message="Carregando tarefas..." />
+                      </motion.div>
+                    ) : filteredTasks.length === 0 ? (
+                      <motion.div
+                        key="empty"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                      >
+                        <EmptyState type="tasks" />
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        key="tasks"
+                        className="space-y-2 md:space-y-3"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        {filteredTasks.map((task, index) => (
+                          <motion.div
+                            key={task.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ 
+                              opacity: hoveredCardId && hoveredCardId !== task.id ? 0.7 : 1, 
+                              y: 0,
+                              scale: hoveredCardId === task.id ? 1.02 : 1,
+                            }}
+                            transition={{ 
+                              delay: index * 0.05,
+                              duration: 0.3,
+                            }}
+                            onHoverStart={() => setHoveredCardId(task.id)}
+                            onHoverEnd={() => setHoveredCardId(null)}
+                          >
+                            <TaskCard
+                              task={task}
+                              index={index}
+                              onToggle={handleToggleTask}
+                              onDelete={handleDeleteTask}
+                              onClick={handleTaskClick}
+                              categoryColor={getCategoryColor(task.category || "Geral", uniqueCategories)}
+                            />
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            </MotionItem>
+          </MotionContainer>
+
+          {/* Right Column: Pomodoro + Progress (Desktop only) */}
           {!isMobile && (
-            <div className="hidden lg:flex flex-col gap-4 animate-slide-in-right">
-              {/* Modo Foco / Pomodoro */}
-              <div className="glass-card rounded-2xl p-5 glass-card-hover relative overflow-hidden">
-                <div className="absolute -top-8 -right-8 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
-                
-                <div className="relative">
+            <MotionContainer className="flex flex-col gap-3 md:gap-6" staggerDelay={0.2}>
+              {/* User Auth Button */}
+              <MotionItem>
+                <motion.div 
+                  className="glass-card rounded-2xl p-4 glass-card-hover"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {user ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                          <User className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium truncate max-w-[150px]">
+                            {user.email?.split("@")[0]}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Sincronizado</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => signOut()}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <LogOut className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-3 h-auto py-3 rounded-xl border-border/50"
+                      onClick={() => setAuthModalOpen(true)}
+                    >
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-medium">Entrar ou Criar Conta</p>
+                        <p className="text-xs text-muted-foreground">Sincronize seus dados</p>
+                      </div>
+                    </Button>
+                  )}
+                </motion.div>
+              </MotionItem>
+
+              {/* Pomodoro Timer */}
+              <MotionItem>
+                <motion.div 
+                  className="glass-card rounded-2xl p-4 md:p-5 glass-card-hover"
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <div className="flex items-center gap-2 mb-4">
                     <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
                       <Timer className="h-4 w-4 text-primary" />
@@ -393,12 +528,14 @@ const Index = () => {
                     </span>
                   </div>
                   <PomodoroTimer onComplete={handlePomodoroComplete} />
-                </div>
-              </div>
+                </motion.div>
+              </MotionItem>
 
-              {/* Progresso */}
-              <StudyStreak tasks={tasks} />
-            </div>
+              {/* Study Streak */}
+              <MotionItem>
+                <StudyStreak tasks={tasks} progress={progress} />
+              </MotionItem>
+            </MotionContainer>
           )}
         </div>
       </main>
