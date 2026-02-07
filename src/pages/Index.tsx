@@ -52,6 +52,7 @@ const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
   const isMobile = useIsMobile();
   
   const [feedback, setFeedback] = useState<{
@@ -59,6 +60,33 @@ const Index = () => {
     type: "loading" | "success" | "error" | "complete";
     message: string;
   }>({ show: false, type: "loading", message: "" });
+
+  // Minimum splash screen duration (3 seconds)
+  useEffect(() => {
+    const minDuration = 3000;
+    const timer = setTimeout(() => {
+      if (!authLoading) {
+        setShowSplash(false);
+      }
+    }, minDuration);
+
+    return () => clearTimeout(timer);
+  }, [authLoading]);
+
+  // Also hide splash when auth finishes (but respect minimum duration)
+  useEffect(() => {
+    if (!authLoading && !showSplash) return;
+    
+    // If auth is done but splash is still showing due to minimum duration, that's fine
+    // The timeout above will handle it
+  }, [authLoading, showSplash]);
+
+  // Auth guard: show modal when no user after splash
+  useEffect(() => {
+    if (!showSplash && !user) {
+      setAuthModalOpen(true);
+    }
+  }, [showSplash, user]);
 
   // Get unique categories for color mapping
   const uniqueCategories = [...new Set(tasks.map((t) => t.category || "Geral"))];
@@ -186,10 +214,22 @@ const Index = () => {
     });
   };
 
-  if (authLoading) {
+  // Splash screen with minimum duration
+  if (showSplash || authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <LoadingShimmer message="Carregando..." />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-6">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5, type: "spring" }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="p-4 rounded-3xl bg-primary/10 border border-primary/20">
+            <Bot className="h-12 w-12 text-primary" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight">VDE AI</h1>
+        </motion.div>
+        <LoadingShimmer message="Preparando seu dashboard..." />
       </div>
     );
   }
@@ -224,8 +264,12 @@ const Index = () => {
         onHide={() => setFeedback((prev) => ({ ...prev, show: false }))}
       />
 
-      {/* Auth Modal */}
-      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+      {/* Auth Modal - forceOpen when no user */}
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen}
+        forceOpen={!user}
+      />
 
       {/* Task Notes Modal */}
       <TaskNotesModal
@@ -321,13 +365,13 @@ const Index = () => {
           </motion.div>
         )}
 
-        {/* Mobile: Slim cards - Modo Foco + Progresso side by side */}
+        {/* Mobile: Slim cards - Modo Foco + Progresso side by side with equal width */}
         {isMobile && (
           <MotionContainer className="grid grid-cols-2 gap-2" staggerDelay={0.1}>
-            {/* Slim Pomodoro */}
+            {/* Slim Pomodoro - Square layout */}
             <MotionItem>
               <motion.div 
-                className="glass-card rounded-xl p-3 glass-card-hover"
+                className="glass-card rounded-xl p-3 glass-card-hover h-full"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -343,7 +387,7 @@ const Index = () => {
               </motion.div>
             </MotionItem>
 
-            {/* Slim Progress */}
+            {/* Slim Progress - Equal width */}
             <MotionItem>
               <StudyStreak tasks={tasks} progress={progress} compact />
             </MotionItem>
