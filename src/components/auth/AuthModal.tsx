@@ -80,7 +80,7 @@ export function AuthModal({ open, onOpenChange, forceOpen = false }: AuthModalPr
     setGoogleLoading(true);
     try {
       const { error } = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: window.location.origin + window.location.pathname,
       });
 
       if (error) {
