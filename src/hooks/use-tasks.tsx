@@ -11,16 +11,7 @@ export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load tasks from Supabase or localStorage
-  useEffect(() => {
-    if (user) {
-      loadTasksFromSupabase();
-      subscribeToRealtimeChanges();
-    } else {
-      loadTasksFromLocalStorage();
-    }
-  }, [user]);
-
+  // Define load functions BEFORE useEffect
   const loadTasksFromSupabase = useCallback(async () => {
     if (!user) return;
     
@@ -76,69 +67,104 @@ export function useTasks() {
     setLoading(false);
   }, []);
 
-  const subscribeToRealtimeChanges = useCallback(() => {
+  // Load tasks from Supabase or localStorage
+  useEffect(() => {
+    if (user) {
+      loadTasksFromSupabase();
+    } else {
+      loadTasksFromLocalStorage();
+    }
+  }, [user, loadTasksFromSupabase, loadTasksFromLocalStorage]);
+
+  // Subscribe to realtime changes - separate effect with proper cleanup
+  useEffect(() => {
     if (!user) return;
 
+    console.log("Setting up realtime subscription for user:", user.id);
+
     const channel = supabase
-      .channel("tasks-changes")
+      .channel(`tasks-realtime-${user.id}`)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "tasks",
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("Realtime update:", payload);
-          
-          if (payload.eventType === "INSERT") {
-            const newTask = payload.new as any;
-            setTasks((prev) => {
-              if (prev.find((t) => t.id === newTask.id)) return prev;
-              return [...prev, {
-                id: newTask.id,
-                text: newTask.text,
-                description: newTask.description || undefined,
-                done: newTask.done,
-                priority: newTask.priority as "high" | "medium" | "low" | undefined,
-                date: newTask.date || undefined,
-                category: newTask.category || undefined,
-                subject: newTask.subject || undefined,
-                notes: newTask.notes || undefined,
-              }];
-            });
-          } else if (payload.eventType === "UPDATE") {
-            const updated = payload.new as any;
-            setTasks((prev) =>
-              prev.map((t) =>
-                t.id === updated.id
-                  ? {
-                      ...t,
-                      text: updated.text,
-                      description: updated.description || undefined,
-                      done: updated.done,
-                      priority: updated.priority as "high" | "medium" | "low" | undefined,
-                      date: updated.date || undefined,
-                      category: updated.category || undefined,
-                      subject: updated.subject || undefined,
-                      notes: updated.notes || undefined,
-                    }
-                  : t
-              )
-            );
-          } else if (payload.eventType === "DELETE") {
-            const deleted = payload.old as any;
-            setTasks((prev) => prev.filter((t) => t.id !== deleted.id));
-          }
+          console.log("Realtime INSERT:", payload);
+          const newTask = payload.new as any;
+          setTasks((prev) => {
+            if (prev.find((t) => t.id === newTask.id)) return prev;
+            return [...prev, {
+              id: newTask.id,
+              text: newTask.text,
+              description: newTask.description || undefined,
+              done: newTask.done,
+              priority: newTask.priority as "high" | "medium" | "low" | undefined,
+              date: newTask.date || undefined,
+              category: newTask.category || undefined,
+              subject: newTask.subject || undefined,
+              notes: newTask.notes || undefined,
+            }];
+          });
         }
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "tasks",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Realtime UPDATE:", payload);
+          const updated = payload.new as any;
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === updated.id
+                ? {
+                    ...t,
+                    text: updated.text,
+                    description: updated.description || undefined,
+                    done: updated.done,
+                    priority: updated.priority as "high" | "medium" | "low" | undefined,
+                    date: updated.date || undefined,
+                    category: updated.category || undefined,
+                    subject: updated.subject || undefined,
+                    notes: updated.notes || undefined,
+                  }
+                : t
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "tasks",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Realtime DELETE:", payload);
+          const deleted = payload.old as any;
+          setTasks((prev) => prev.filter((t) => t.id !== deleted.id));
+        }
+      )
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
 
     return () => {
+      console.log("Cleaning up realtime subscription");
       supabase.removeChannel(channel);
     };
   }, [user]);
+
 
   const addTasks = useCallback(
     async (newTasks: Omit<Task, "id">[]) => {
