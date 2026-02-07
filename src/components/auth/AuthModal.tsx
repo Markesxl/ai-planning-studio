@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, User, Loader2, LogIn, UserPlus } from "lucide-react";
+import { Mail, Lock, User, Loader2, LogIn, UserPlus, Chrome } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,19 +12,28 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { lovable } from "@/integrations/lovable/index";
 
 interface AuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  forceOpen?: boolean; // For auth guard - prevents closing
 }
 
-export function AuthModal({ open, onOpenChange }: AuthModalProps) {
+export function AuthModal({ open, onOpenChange, forceOpen = false }: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { signIn, signUp } = useAuth();
+
+  const handleOpenChange = (newOpen: boolean) => {
+    // If forceOpen is true, prevent closing
+    if (forceOpen && !newOpen) return;
+    onOpenChange(newOpen);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +76,32 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const { error } = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+
+      if (error) {
+        toast({
+          title: "Erro ao entrar com Google",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+      // If successful, will redirect to Google and back
+    } catch (err) {
+      toast({
+        title: "Erro ao entrar com Google",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const toggleMode = () => {
     setMode(mode === "login" ? "signup" : "login");
     setEmail("");
@@ -75,8 +110,12 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-[420px] glass-card border-border/50 rounded-2xl md:rounded-3xl overflow-hidden">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent 
+        className="w-[95vw] max-w-[420px] glass-card border-border/50 rounded-2xl md:rounded-3xl overflow-hidden"
+        onPointerDownOutside={(e) => forceOpen && e.preventDefault()}
+        onEscapeKeyDown={(e) => forceOpen && e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-xl">
             <motion.div
@@ -105,7 +144,35 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        {/* Google Sign In Button */}
+        <div className="mt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+            className="w-full h-12 rounded-xl border-border/50 hover:bg-secondary/50 gap-3 font-medium"
+          >
+            {googleLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Chrome className="h-5 w-5" />
+            )}
+            Continuar com Google
+          </Button>
+        </div>
+
+        {/* Divider */}
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border/50" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">ou</span>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <AnimatePresence mode="wait">
             {mode === "signup" && (
               <motion.div

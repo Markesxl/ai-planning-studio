@@ -55,61 +55,63 @@ export function PomodoroTimer({ duration = 25, onComplete, compact = false }: Po
 
   const progress = ((duration * 60 - seconds) / (duration * 60)) * 100;
 
-  // Compact version for mobile
+  // Compact version for mobile - horizontal layout with timer left, controls right
   if (compact) {
     return (
-      <div className="flex flex-col items-center gap-2">
-        {/* Timer Display */}
-        <div className="relative">
-          {isRunning && (
-            <div className="absolute inset-0 blur-xl bg-primary/20 rounded-full animate-glow-pulse" />
-          )}
-          <div
-            className={cn(
-              "relative text-xl font-black tracking-wider transition-all duration-500",
-              isRunning ? "text-primary scale-105" : "text-foreground"
+      <div className="flex items-center justify-between gap-2">
+        {/* Left side: Timer Display */}
+        <div className="flex flex-col items-start gap-1 flex-1">
+          <div className="relative">
+            {isRunning && (
+              <div className="absolute inset-0 blur-xl bg-primary/20 rounded-full animate-glow-pulse" />
             )}
-          >
-            {formatTime(seconds)}
+            <div
+              className={cn(
+                "relative text-xl font-black tracking-wider transition-all duration-500",
+                isRunning ? "text-primary scale-105" : "text-foreground"
+              )}
+            >
+              {formatTime(seconds)}
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full h-1 bg-secondary/50 rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all duration-1000 ease-linear",
+                isRunning 
+                  ? "bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] animate-shimmer" 
+                  : "bg-primary"
+              )}
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="w-full h-1 bg-secondary/50 rounded-full overflow-hidden">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all duration-1000 ease-linear",
-              isRunning 
-                ? "bg-gradient-to-r from-primary via-emerald-400 to-primary bg-[length:200%_100%] animate-shimmer" 
-                : "bg-primary"
-            )}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Controls */}
-        <div className="flex gap-1.5 w-full">
+        {/* Right side: Controls stacked vertically - square buttons */}
+        <div className="flex flex-col gap-1.5">
           <Button
             onClick={toggleTimer}
-            size="sm"
+            size="icon"
             className={cn(
-              "flex-1 font-bold uppercase text-[10px] rounded-lg h-7 transition-all duration-300",
+              "h-8 w-8 rounded-lg transition-all duration-300",
               isRunning
                 ? "bg-destructive/90 hover:bg-destructive text-destructive-foreground"
                 : "bg-primary hover:bg-primary/90 text-primary-foreground"
             )}
           >
             {isRunning ? (
-              <Square className="h-3 w-3" />
+              <Square className="h-3.5 w-3.5" />
             ) : (
-              <Play className="h-3 w-3" />
+              <Play className="h-3.5 w-3.5" />
             )}
           </Button>
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
             onClick={resetTimer}
-            className="h-7 w-7 rounded-lg border-border/50 p-0"
+            className="h-8 w-8 rounded-lg border-border/50"
           >
             <RotateCcw className="h-3 w-3" />
           </Button>

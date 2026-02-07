@@ -218,23 +218,32 @@ export function useTasks() {
 
   const deleteTask = useCallback(
     async (id: string) => {
+      // Optimistic update - remove from local state immediately
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+
       if (user) {
         const { error } = await supabase.from("tasks").delete().eq("id", id);
         if (error) {
           console.error("Error deleting task:", error);
+          // Revert on error - reload from Supabase
+          loadTasksFromSupabase();
           return;
         }
+        // Realtime will handle sync across devices
       } else {
+        // Update localStorage
         const updated = tasks.filter((t) => t.id !== id);
-        setTasks(updated);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
       }
     },
-    [user, tasks]
+    [user, tasks, loadTasksFromSupabase]
   );
 
   const deleteCategory = useCallback(
     async (category: string) => {
+      // Optimistic update - remove all tasks from this category immediately
+      setTasks((prev) => prev.filter((t) => (t.category || "Sem categoria") !== category));
+
       if (user) {
         const { error } = await supabase
           .from("tasks")
@@ -244,17 +253,20 @@ export function useTasks() {
 
         if (error) {
           console.error("Error deleting category:", error);
+          // Revert on error - reload from Supabase
+          loadTasksFromSupabase();
           return;
         }
+        // Realtime will handle sync across devices
       } else {
+        // Update localStorage
         const updated = tasks.filter(
           (t) => (t.category || "Sem categoria") !== category
         );
-        setTasks(updated);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
       }
     },
-    [user, tasks]
+    [user, tasks, loadTasksFromSupabase]
   );
 
   const updateTaskNotes = useCallback(
