@@ -79,8 +79,9 @@ export function AuthModal({ open, onOpenChange, forceOpen = false }: AuthModalPr
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
+      // Usamos redirectTo para garantir a compatibilidade
       const { error } = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + window.location.pathname,
+        redirectTo: "https://markesxl.github.io/ai-planning-studio/",
       });
 
       if (error) {
