@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, CalendarDays, Menu, Timer, User, LogOut } from "lucide-react";
+import { Bot, CalendarDays, Menu, Timer, User, LogOut, Filter } from "lucide-react";
 import { Sidebar } from "@/components/vde/Sidebar";
 import { AddSubjectModal } from "@/components/vde/AddSubjectModal";
 import { TaskNotesModal } from "@/components/vde/TaskNotesModal";
@@ -40,6 +40,13 @@ export function getCategoryColor(category: string, allCategories: string[]) {
   return CATEGORY_COLORS[index % CATEGORY_COLORS.length];
 }
 
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
 const Index = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const { tasks, loading: tasksLoading, addTasks, toggleTask, deleteTask, deleteCategory, updateTaskNotes } = useTasks();
@@ -53,6 +60,7 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const isMobile = useIsMobile();
   
   const [feedback, setFeedback] = useState<{
@@ -204,7 +212,18 @@ const Index = () => {
   const todayStr = new Date().toISOString().split("T")[0];
   const isToday = selectedDateStr === todayStr;
   
-  const filteredTasks = tasks.filter((t) => t.date === selectedDateStr);
+  const dateTasks = useMemo(() => tasks.filter((t) => t.date === selectedDateStr), [tasks, selectedDateStr]);
+  const filteredTasks = useMemo(() => 
+    selectedCategory ? dateTasks.filter((t) => (t.category || "Geral") === selectedCategory) : dateTasks,
+    [dateTasks, selectedCategory]
+  );
+  const dateCategories = useMemo(() => [...new Set(dateTasks.map((t) => t.category || "Geral"))], [dateTasks]);
+  const completedCount = dateTasks.filter((t) => t.done).length;
+  const totalCount = dateTasks.length;
+  const completionPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const displayName = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Estudante";
+  const greeting = getGreeting();
   
   const formatDisplayDate = (date: Date) => {
     return date.toLocaleDateString("pt-BR", { 
@@ -324,43 +343,50 @@ const Index = () => {
         {/* Mobile Header */}
         {isMobile && (
           <motion.div 
-            className="flex items-center justify-between"
+            className="flex flex-col gap-1"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(true)}
-              className="h-10 w-10 rounded-xl glass-subtle micro-bounce"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-                <Bot className="h-5 w-5 text-primary" />
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen(true)}
+                className="h-10 w-10 rounded-xl glass-subtle micro-bounce"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                  <Bot className="h-5 w-5 text-primary" />
+                </div>
+                <span className="font-bold text-lg">VDE AI</span>
               </div>
-              <span className="font-bold text-lg">VDE AI</span>
+              {user ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => signOut()}
+                  className="h-10 w-10 rounded-xl glass-subtle"
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setAuthModalOpen(true)}
+                  className="h-10 w-10 rounded-xl glass-subtle"
+                >
+                  <User className="h-5 w-5" />
+                </Button>
+              )}
             </div>
-            {user ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => signOut()}
-                className="h-10 w-10 rounded-xl glass-subtle"
-              >
-                <LogOut className="h-5 w-5" />
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setAuthModalOpen(true)}
-                className="h-10 w-10 rounded-xl glass-subtle"
-              >
-                <User className="h-5 w-5" />
-              </Button>
+            {user && (
+              <p className="text-xs text-muted-foreground text-center">
+                {greeting}, <span className="font-semibold text-foreground">{displayName}</span> 👋
+              </p>
             )}
           </motion.div>
         )}
@@ -423,9 +449,22 @@ const Index = () => {
                         <h2 className="text-lg md:text-xl font-bold">
                           {isToday ? "Planejamento de Hoje" : "Tarefas do Dia"}
                         </h2>
-                        <p className="text-xs md:text-sm text-muted-foreground capitalize">
-                          {formatDisplayDate(selectedDate)}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs md:text-sm text-muted-foreground capitalize">
+                            {formatDisplayDate(selectedDate)}
+                          </p>
+                          {totalCount > 0 && (
+                            <motion.span
+                              className="text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary"
+                              key={completedCount}
+                              initial={{ scale: 1.3 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 300 }}
+                            >
+                              {completedCount}/{totalCount}
+                            </motion.span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <AddSubjectModal 
@@ -433,6 +472,57 @@ const Index = () => {
                       onLoadingChange={setIsGenerating}
                     />
                   </div>
+
+                  {/* Task completion progress bar */}
+                  {totalCount > 0 && (
+                    <div className="mb-3 md:mb-4">
+                      <div className="h-1.5 rounded-full bg-secondary/50 overflow-hidden">
+                        <motion.div
+                          className="h-full rounded-full bg-primary"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${completionPct}%` }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category filter chips */}
+                  {dateCategories.length > 1 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3 md:mb-4">
+                      <motion.button
+                        onClick={() => setSelectedCategory(null)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-semibold transition-all duration-200 border",
+                          !selectedCategory
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-secondary/50 text-muted-foreground border-border/50 hover:bg-secondary"
+                        )}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Todas
+                      </motion.button>
+                      {dateCategories.map((cat) => {
+                        const color = getCategoryColor(cat, uniqueCategories);
+                        return (
+                          <motion.button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-semibold transition-all duration-200 border",
+                              selectedCategory === cat
+                                ? `${color.bg} ${color.text} border-current/30`
+                                : "bg-secondary/50 text-muted-foreground border-border/50 hover:bg-secondary"
+                            )}
+                            whileTap={{ scale: 0.95 }}
+                            layout
+                          >
+                            {cat}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Loading State */}
                   <AnimatePresence mode="wait">
@@ -524,9 +614,9 @@ const Index = () => {
                         </div>
                         <div>
                           <p className="text-sm font-medium truncate max-w-[150px]">
-                            {user.email?.split("@")[0]}
+                            {greeting}, {displayName}
                           </p>
-                          <p className="text-xs text-muted-foreground">Sincronizado</p>
+                          <p className="text-xs text-muted-foreground">Sincronizado ✓</p>
                         </div>
                       </div>
                       <Button
