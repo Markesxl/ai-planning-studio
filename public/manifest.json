@@ -1,9 +1,10 @@
 {
+  "id": "/ai-planning-studio/",
   "name": "VDE AI - Planejador de Estudos Inteligente",
   "short_name": "VDE AI",
   "description": "Dashboard inteligente para planejamento e organização de estudos com IA",
-  "start_url": ".",
-  "scope": ".",
+  "start_url": "/ai-planning-studio/",
+  "scope": "/ai-planning-studio/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#10b981",

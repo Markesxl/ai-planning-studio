@@ -76,11 +76,9 @@ export function useTasks() {
     }
   }, [user, loadTasksFromSupabase, loadTasksFromLocalStorage]);
 
-  // Subscribe to realtime changes - separate effect with proper cleanup
+  // Subscribe to realtime changes with recovery on channel errors
   useEffect(() => {
     if (!user) return;
-
-    console.log("Setting up realtime subscription for user:", user.id);
 
     const channel = supabase
       .channel(`tasks-realtime-${user.id}`)
@@ -93,7 +91,6 @@ export function useTasks() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("Realtime INSERT:", payload);
           const newTask = payload.new as any;
           setTasks((prev) => {
             if (prev.find((t) => t.id === newTask.id)) return prev;
@@ -120,7 +117,6 @@ export function useTasks() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("Realtime UPDATE:", payload);
           const updated = payload.new as any;
           setTasks((prev) =>
             prev.map((t) =>
@@ -150,20 +146,20 @@ export function useTasks() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log("Realtime DELETE:", payload);
           const deleted = payload.old as any;
           setTasks((prev) => prev.filter((t) => t.id !== deleted.id));
         }
       )
       .subscribe((status) => {
-        console.log("Realtime subscription status:", status);
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          loadTasksFromSupabase();
+        }
       });
 
     return () => {
-      console.log("Cleaning up realtime subscription");
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, loadTasksFromSupabase]);
 
 
   const addTasks = useCallback(
@@ -271,15 +267,17 @@ export function useTasks() {
       setTasks((prev) => prev.filter((t) => (t.category || "Sem categoria") !== category));
 
       if (user) {
-        // Get task IDs for this category to delete them
-        const tasksToDelete = tasks.filter((t) => (t.category || "Sem categoria") === category);
-        const ids = tasksToDelete.map((t) => t.id);
-        
+        // Resolve IDs from local state to support null categories ("Sem categoria")
+        const ids = tasks
+          .filter((t) => (t.category || "Sem categoria") === category)
+          .map((t) => t.id);
+
         if (ids.length === 0) return;
 
         const { error } = await supabase
           .from("tasks")
           .delete()
+          .eq("user_id", user.id)
           .in("id", ids);
 
         if (error) {

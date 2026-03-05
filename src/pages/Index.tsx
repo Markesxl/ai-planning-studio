@@ -69,9 +69,9 @@ const Index = () => {
     message: string;
   }>({ show: false, type: "loading", message: "" });
 
-  // Minimum splash screen duration (3 seconds)
+  // Reduced splash duration for faster perceived performance
   useEffect(() => {
-    const minDuration = 3000;
+    const minDuration = 800;
     const timer = setTimeout(() => {
       if (!authLoading) {
         setShowSplash(false);
@@ -97,7 +97,7 @@ const Index = () => {
   }, [showSplash, user]);
 
   // Get unique categories for color mapping
-  const uniqueCategories = [...new Set(tasks.map((t) => t.category || "Geral"))];
+  const uniqueCategories = useMemo(() => [...new Set(tasks.map((t) => t.category || "Geral"))], [tasks]);
 
   // Close sidebar on mobile when clicking outside
   useEffect(() => {
