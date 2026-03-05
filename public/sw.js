@@ -1,21 +1,12 @@
-const CACHE_NAME = 'vde-ai-v1';
-const urlsToCache = [
-  '/',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
-];
+const CACHE_NAME = 'vde-ai-v2';
+const urlsToCache = [];
 
-// Install event - cache resources
+// Install event - skip waiting
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
-  );
   self.skipWaiting();
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -33,11 +24,19 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - network first, fallback to cache
 self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Skip chrome-extension and other non-http(s) requests
+  if (!event.request.url.startsWith('http')) return;
+
+  // Skip Supabase API calls - never cache these
+  if (event.request.url.includes('supabase')) return;
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone the response and cache it
-        if (response && response.status === 200) {
+        if (response && response.status === 200 && response.type === 'basic') {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
