@@ -31,7 +31,6 @@
   <body>
     <footer style="opacity: 0.8; font-size: 12px; padding: 20px;">
       <h2 style="display:none;">VDE AI - Planejador de Estudos Inteligente</h2>
-      <p><strong>Finalidade:</strong> O VDE AI é um painel inteligente para organização, criação de cronogramas e gestão de estudos com auxílio de Inteligência Artificial.</p>
       <a href="https://markesxl.github.io/ai-planning-studio/privacy.html">Política de Privacidade</a>
     </footer>
     <div id="root"></div>
@@ -49,19 +48,5 @@
       }(window.location))
     </script>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // Register Service Worker for PWA
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered:', registration);
-            })
-            .catch((error) => {
-              console.log('SW registration failed:', error);
-            });
-        });
-      }
-    </script>
   </body>
 </html>

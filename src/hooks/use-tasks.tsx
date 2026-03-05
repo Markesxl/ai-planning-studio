@@ -271,11 +271,16 @@ export function useTasks() {
       setTasks((prev) => prev.filter((t) => (t.category || "Sem categoria") !== category));
 
       if (user) {
+        // Get task IDs for this category to delete them
+        const tasksToDelete = tasks.filter((t) => (t.category || "Sem categoria") === category);
+        const ids = tasksToDelete.map((t) => t.id);
+        
+        if (ids.length === 0) return;
+
         const { error } = await supabase
           .from("tasks")
           .delete()
-          .eq("user_id", user.id)
-          .eq("category", category);
+          .in("id", ids);
 
         if (error) {
           console.error("Error deleting category:", error);
