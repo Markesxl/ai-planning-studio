@@ -1,5 +1,5 @@
-const CACHE_NAME = "vde-ai-static-v3";
-const APP_SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
+const CACHE_NAME = "vde-ai-v4";
+const APP_SHELL = ["./index.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -10,8 +10,8 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
-      Promise.all(cacheNames.map((cacheName) => (cacheName !== CACHE_NAME ? caches.delete(cacheName) : Promise.resolve())))
+    caches.keys().then((names) =>
+      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
     )
   );
   self.clients.claim();
@@ -20,9 +20,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  const requestUrl = new URL(event.request.url);
-  if (requestUrl.origin !== self.location.origin) return;
+  const url = new URL(event.request.url);
 
+  // Skip non-origin and API requests
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.includes("/rest/") || url.pathname.includes("/auth/") || url.pathname.includes("/functions/") || url.pathname.includes("/realtime/")) return;
+
+  // SPA navigation fallback
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request).catch(async () => {
@@ -33,29 +37,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  const destination = event.request.destination;
-  const isStaticAsset = ["script", "style", "image", "font"].includes(destination);
-  if (!isStaticAsset) return;
+  // Static assets: stale-while-revalidate
+  const dest = event.request.destination;
+  if (["script", "style", "image", "font"].includes(dest)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        const fetchPromise = fetch(event.request).then((response) => {
+          if (response && response.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+          }
+          return response;
+        }).catch(() => cached);
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) {
-        fetch(event.request)
-          .then((response) => {
-            if (response && response.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-            }
-          })
-          .catch(() => undefined);
-        return cached;
-      }
-
-      return fetch(event.request).then((response) => {
-        if (response && response.status === 200) {
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-        }
-        return response;
-      });
-    })
-  );
+        return cached || fetchPromise;
+      })
+    );
+  }
 });

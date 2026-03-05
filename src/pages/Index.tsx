@@ -58,7 +58,7 @@ const Index = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+  
   const [showSplash, setShowSplash] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const isMobile = useIsMobile();
@@ -255,24 +255,10 @@ const Index = () => {
 
   return (
     <div className="flex min-h-screen bg-background overflow-hidden relative">
-      {/* Ambient background effects */}
+      {/* Ambient background effects - static for performance */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div 
-          className="absolute top-[-20%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]"
-          animate={{ 
-            y: [0, -20, 0],
-            x: [0, 10, 0],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div 
-          className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/3 rounded-full blur-[150px]"
-          animate={{ 
-            y: [0, 20, 0],
-            x: [0, -10, 0],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        />
+        <div className="absolute top-[-20%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/3 rounded-full blur-[150px]" />
       </div>
 
       {/* Feedback Overlay */}
@@ -565,18 +551,9 @@ const Index = () => {
                         {filteredTasks.map((task, index) => (
                           <motion.div
                             key={task.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ 
-                              opacity: hoveredCardId && hoveredCardId !== task.id ? 0.7 : 1, 
-                              y: 0,
-                              scale: hoveredCardId === task.id ? 1.02 : 1,
-                            }}
-                            transition={{ 
-                              delay: index * 0.05,
-                              duration: 0.3,
-                            }}
-                            onHoverStart={() => setHoveredCardId(task.id)}
-                            onHoverEnd={() => setHoveredCardId(null)}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.03, duration: 0.2 }}
                           >
                             <TaskCard
                               task={task}
